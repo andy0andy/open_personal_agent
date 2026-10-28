@@ -1,0 +1,4 @@
+# 智能体执行的代码里，matplotlib 默认使用中文字体（后端镜像内置文泉驿微米黑），否则图中中文显示为方框
+font.family: sans-serif
+font.sans-serif: WenQuanYi Micro Hei, DejaVu Sans
+axes.unicode_minus: False

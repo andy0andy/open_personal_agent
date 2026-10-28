@@ -1,0 +1,18 @@
+# MCP 服务清单（设计文档 7.2，D22）：在 MCP 页上改，也可以手改，改完在 MCP 页点"重新加载"。
+# 每个键是服务名（小写字母、数字、下划线），也是它的工具名前缀：files 服务的 write_file 工具叫 files_write_file。
+# 本地进程型（npx / uvx 启动）在 backend 容器里运行；网络型直接连接 url。
+# 需要密钥时写 ${变量名}：在 .env 里设置，然后执行 make restart。
+# version 是文件格式的版本：升级时程序按它自动迁移，不用改。
+# 说明与例子都写在开头这一段：在 MCP 页上保存时，开头的注释会留着，写在下面正文里的会丢。
+# 例：网络型服务（去掉行首的 # 放到 servers 下即生效）：
+#   github:
+#     description: GitHub
+#     transport: streamable_http
+#     url: https://api.githubcopilot.com/mcp/
+#     headers: { Authorization: "Bearer ${GITHUB_TOKEN}" }
+version: 1
+servers:
+  files:
+    description: 共享文件夹（本机 .workdata/shared/，.env 的 SHARED_DIR 可改成别的文件夹）
+    command: npx
+    args: ["-y", "@modelcontextprotocol/server-filesystem@2026.8.31", "/shared"]

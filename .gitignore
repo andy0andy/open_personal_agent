@@ -1,18 +1,24 @@
-# Build and Release Folders
-bin-debug/
-bin-release/
-[Oo]bj/
-[Bb]in/
+# 依赖与缓存
+.venv/
+__pycache__/
+*.pyc
+.mypy_cache/
+.ruff_cache/
+.pytest_cache/
+frontend/node_modules/
+frontend/dist/
+# 密钥与个人数据（.workdata 需要备份，但不进版本库）
+.env
+# deploy/.env 只是指向根目录 .env 的链接（compose 靠它读到 .env），要进版本库
+!deploy/.env
+.workdata/
 
-# Other files and folders
-.settings/
+# make e2e 的运行结果
+frontend/test-results/
+frontend/playwright-report/
+dist/
 
-# Executables
-*.swf
-*.air
-*.ipa
-*.apk
-
-# Project files, i.e. `.project`, `.actionScriptProperties` and `.flexProperties`
-# should NOT be excluded as they contain compiler settings and other important
-# information for Eclipse / Flash Builder.
+# 本机工具
+.idea/
+.import_linter_cache/
+.DS_Store

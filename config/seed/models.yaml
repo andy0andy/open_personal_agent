@@ -1,0 +1,45 @@
+# 首次启动时经网关的模型管理接口导入网关数据库（D22）；之后模型全部在网关数据库里，在模型页增删改。
+# 字段同模型页的新增表单：source 是模型来源（upstream 为公司 LiteLLM 网关，ollama 为本机 Ollama），
+# 价格是"美元 / 每百万 token"（只是模型的资料，不参与任何统计）。
+# gemini、gpt 的上下文长度、输出上限、看图能力与价格取自网关自带的价格表（LiteLLM v1.105.0，2026-10-19）。
+models:
+  - name: claude-opus-4-6
+    source: upstream
+    upstream_id: claude-opus-4-6
+    mode: chat
+    max_input_tokens: 1000000
+    max_output_tokens: 128000
+    price_input: 5
+    price_output: 25
+    supports_reasoning: true # Claude 开深度思考（adaptive），单次输出上限 64000
+    supports_vision: true
+    supports_function_calling: true
+    supports_prompt_caching: true # 提示缓存（设计 2026-10-23 4.1，只对 Claude）
+  - name: gemini-3.5-flash
+    source: upstream
+    upstream_id: gemini-3.5-flash
+    mode: chat
+    max_input_tokens: 1048576
+    max_output_tokens: 65535
+    price_input: 1.5
+    price_output: 9
+    supports_reasoning: true
+    supports_vision: true
+    supports_function_calling: true
+  - name: gpt-5.5-pro
+    source: upstream
+    upstream_id: gpt-5.5-pro
+    mode: chat
+    max_input_tokens: 1050000
+    max_output_tokens: 128000
+    price_input: 30
+    price_output: 180
+    supports_reasoning: true
+    supports_vision: true
+    supports_function_calling: true
+  - name: embed-qwen3-0.6b # 向量模型（D15）：本机 Ollama，1024 维，不花钱
+    source: ollama
+    upstream_id: qwen3-embedding:0.6b
+    mode: embedding
+    price_input: 0
+    price_output: 0

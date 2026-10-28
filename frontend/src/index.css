@@ -1,0 +1,5 @@
+@import "tailwindcss";
+/* 测试文件里的类名只是测试数据（如写死颜色检查的反例），不生成样式 */
+@source not "./**/*.test.{ts,tsx}";
+@import "./styles/tokens.css";
+@import "./styles/markdown.css";

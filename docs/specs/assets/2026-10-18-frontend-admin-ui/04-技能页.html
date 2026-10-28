@@ -1,0 +1,361 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Superpowers Brainstorming</title>
+  <style>
+    /*
+     * BRAINSTORM COMPANION FRAME TEMPLATE
+     *
+     * This template provides a consistent frame with:
+     * - OS-aware light/dark theming
+     * - Header branding and connection status
+     * - Scrollable main content area
+     * - CSS helpers for common UI patterns
+     *
+     * Content is injected via placeholder comment in #frame-content.
+     */
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { height: 100%; overflow: hidden; }
+
+    /* ===== THEME VARIABLES ===== */
+    :root {
+      --bg-primary: #f5f5f7;
+      --bg-secondary: #ffffff;
+      --bg-tertiary: #e5e5e7;
+      --border: #d1d1d6;
+      --text-primary: #1d1d1f;
+      --text-secondary: #86868b;
+      --text-tertiary: #aeaeb2;
+      --accent: #0071e3;
+      --accent-hover: #0077ed;
+      --success: #34c759;
+      --warning: #ff9f0a;
+      --error: #ff3b30;
+      --selected-bg: #e8f4fd;
+      --selected-border: #0071e3;
+    }
+
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg-primary: #1d1d1f;
+        --bg-secondary: #2d2d2f;
+        --bg-tertiary: #3d3d3f;
+        --border: #424245;
+        --text-primary: #f5f5f7;
+        --text-secondary: #86868b;
+        --text-tertiary: #636366;
+        --accent: #0a84ff;
+        --accent-hover: #409cff;
+        --selected-bg: rgba(10, 132, 255, 0.15);
+        --selected-border: #0a84ff;
+      }
+    }
+
+    body {
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+      background: var(--bg-primary);
+      color: var(--text-primary);
+      display: flex;
+      flex-direction: column;
+      line-height: 1.5;
+    }
+
+    /* ===== FRAME STRUCTURE ===== */
+    .brand { display: flex; align-items: center; min-width: 0; overflow: hidden; color: var(--text-secondary); line-height: 1; }
+    .brand a { color: inherit; text-decoration: none; display: flex; align-items: center; gap: 0.5rem; min-width: 0; max-width: 100%; line-height: 1; }
+    .brand-copy { display: block; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; line-height: 1; transform: translateY(-1px); }
+    .brand-logo { display: block; height: 1em; width: auto; max-width: 180px; flex-shrink: 0; filter: invert(1); }
+    @media (prefers-color-scheme: dark) {
+      .brand-logo { filter: none; }
+    }
+    .status { font-size: 0.7rem; color: var(--status-color, var(--success)); display: flex; align-items: center; gap: 0.4rem; justify-self: end; white-space: nowrap; line-height: 1; }
+    .status::before { content: ''; width: 6px; height: 6px; background: var(--status-color, var(--success)); border-radius: 50%; }
+
+    .main { flex: 1; overflow-y: auto; }
+    #frame-content { padding: 2rem; min-height: 100%; }
+
+    .header {
+      background: var(--bg-secondary);
+      border-bottom: 1px solid var(--border);
+      padding: 0.5rem 1.5rem;
+      flex-shrink: 0;
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      align-items: center;
+      gap: 1rem;
+      min-height: 42px;
+    }
+    .header .brand { justify-self: start; width: 100%; font-size: 0.75rem; line-height: 1; }
+    .header .status { grid-column: 2; line-height: 1; }
+    .header span {
+      font-size: 0.75rem;
+      color: var(--text-secondary);
+    }
+    .header .selected-text {
+      color: var(--accent);
+      font-weight: 500;
+    }
+
+    /* ===== TYPOGRAPHY ===== */
+    h2 { font-size: 1.5rem; font-weight: 600; margin-bottom: 0.5rem; }
+    h3 { font-size: 1.1rem; font-weight: 600; margin-bottom: 0.25rem; }
+    .subtitle { color: var(--text-secondary); margin-bottom: 1.5rem; }
+    .section { margin-bottom: 2rem; }
+    .label { font-size: 0.7rem; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.5rem; }
+
+    /* ===== OPTIONS (for A/B/C choices) ===== */
+    .options { display: flex; flex-direction: column; gap: 0.75rem; }
+    .option {
+      background: var(--bg-secondary);
+      border: 2px solid var(--border);
+      border-radius: 12px;
+      padding: 1rem 1.25rem;
+      cursor: pointer;
+      transition: all 0.15s ease;
+      display: flex;
+      align-items: flex-start;
+      gap: 1rem;
+    }
+    .option:hover { border-color: var(--accent); }
+    .option.selected { background: var(--selected-bg); border-color: var(--selected-border); }
+    .option .letter {
+      background: var(--bg-tertiary);
+      color: var(--text-secondary);
+      width: 1.75rem; height: 1.75rem;
+      border-radius: 6px;
+      display: flex; align-items: center; justify-content: center;
+      font-weight: 600; font-size: 0.85rem; flex-shrink: 0;
+    }
+    .option.selected .letter { background: var(--accent); color: white; }
+    .option .content { flex: 1; }
+    .option .content h3 { font-size: 0.95rem; margin-bottom: 0.15rem; }
+    .option .content p { color: var(--text-secondary); font-size: 0.85rem; margin: 0; }
+
+    /* ===== CARDS (for showing designs/mockups) ===== */
+    .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1rem; }
+    .card {
+      background: var(--bg-secondary);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      overflow: hidden;
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+    .card:hover { border-color: var(--accent); transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
+    .card.selected { border-color: var(--selected-border); border-width: 2px; }
+    .card-image { background: var(--bg-tertiary); aspect-ratio: 16/10; display: flex; align-items: center; justify-content: center; }
+    .card-body { padding: 1rem; }
+    .card-body h3 { margin-bottom: 0.25rem; }
+    .card-body p { color: var(--text-secondary); font-size: 0.85rem; }
+
+    /* ===== MOCKUP CONTAINER ===== */
+    .mockup {
+      background: var(--bg-secondary);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      overflow: hidden;
+      margin-bottom: 1.5rem;
+    }
+    .mockup-header {
+      background: var(--bg-tertiary);
+      padding: 0.5rem 1rem;
+      font-size: 0.75rem;
+      color: var(--text-secondary);
+      border-bottom: 1px solid var(--border);
+    }
+    .mockup-body { padding: 1.5rem; }
+
+    /* ===== SPLIT VIEW (side-by-side comparison) ===== */
+    .split { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; }
+    @media (max-width: 700px) { .split { grid-template-columns: 1fr; } }
+
+    /* ===== PROS/CONS ===== */
+    .pros-cons { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin: 1rem 0; }
+    .pros, .cons { background: var(--bg-secondary); border-radius: 8px; padding: 1rem; }
+    .pros h4 { color: var(--success); font-size: 0.85rem; margin-bottom: 0.5rem; }
+    .cons h4 { color: var(--error); font-size: 0.85rem; margin-bottom: 0.5rem; }
+    .pros ul, .cons ul { margin-left: 1.25rem; font-size: 0.85rem; color: var(--text-secondary); }
+    .pros li, .cons li { margin-bottom: 0.25rem; }
+
+    /* ===== PLACEHOLDER (for mockup areas) ===== */
+    .placeholder {
+      background: var(--bg-tertiary);
+      border: 2px dashed var(--border);
+      border-radius: 8px;
+      padding: 2rem;
+      text-align: center;
+      color: var(--text-tertiary);
+    }
+
+    /* ===== INLINE MOCKUP ELEMENTS ===== */
+    .mock-nav { background: var(--accent); color: white; padding: 0.75rem 1rem; display: flex; gap: 1.5rem; font-size: 0.9rem; }
+    .mock-sidebar { background: var(--bg-tertiary); padding: 1rem; min-width: 180px; }
+    .mock-content { padding: 1.5rem; flex: 1; }
+    .mock-button { background: var(--accent); color: white; border: none; padding: 0.5rem 1rem; border-radius: 6px; font-size: 0.85rem; }
+    .mock-input { background: var(--bg-primary); border: 1px solid var(--border); border-radius: 6px; padding: 0.5rem; width: 100%; }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <!-- BRANDING -->
+    <div class="status">Connecting…</div>
+  </div>
+
+  <div class="main">
+    <div id="frame-content">
+      <style>
+  .opa{--bg:#041c1c;--fg:#ffe6cb;--ln:#1d3a39;--mut:#ffe6cb99;--red:#ff7a6b;background:var(--bg);color:var(--fg);font:12px/1.45 ui-monospace,"SF Mono",monospace;border:1px solid var(--ln);border-radius:6px;display:flex;overflow:hidden;position:relative}
+  .opa .side{width:120px;border-right:1px solid var(--ln);padding:8px 0;flex-shrink:0}
+  .opa .brand{padding:0 10px 8px;font-weight:700;letter-spacing:.08em;border-bottom:1px solid var(--ln);margin-bottom:6px}
+  .opa .it{padding:4px 10px;letter-spacing:.06em;opacity:.7}
+  .opa .it.on{background:#ffe6cb1f;opacity:1;border-left:2px solid var(--fg)}
+  .opa .gap{height:10px}
+  .opa .main{flex:1;min-width:0;display:flex;flex-direction:column}
+  .opa .top{display:flex;align-items:center;gap:8px;padding:10px 14px;border-bottom:1px solid var(--ln)}
+  .opa .top h4{margin:0;font-size:14px;letter-spacing:.04em}
+  .opa .btn{border:1px solid var(--fg);padding:3px 8px;font-size:10px;letter-spacing:.1em;text-transform:uppercase;white-space:nowrap}
+  .opa .btn.pri{background:var(--fg);color:var(--bg)}
+  .opa .btn.danger{border-color:var(--red);color:var(--red)}
+  .opa .search{border:1px solid var(--ln);padding:3px 8px;color:#ffe6cb55;width:150px}
+  .opa .body{padding:12px 14px;display:flex;gap:12px}
+  .opa .box{border:1px solid var(--ln)}
+  .opa .bh{padding:8px 10px;border-bottom:1px solid var(--ln);font-weight:700;letter-spacing:.1em;text-transform:uppercase;display:flex;align-items:center;gap:8px}
+  .opa .bh small{font-weight:400;letter-spacing:0;text-transform:none;color:var(--mut)}
+  .opa .flt{padding:4px 10px;display:flex;justify-content:space-between;color:var(--mut)}
+  .opa .flt.on{background:var(--fg);color:var(--bg)}
+  .opa .fgrp{padding:8px 10px 2px;font-size:10px;letter-spacing:.1em;color:#ffe6cb66}
+  .opa .row{display:flex;align-items:center;gap:10px;padding:9px 10px;border-bottom:1px solid var(--ln)}
+  .opa .row:last-child{border-bottom:0}
+  .opa .row.off .nm,.opa .row.off .sub{opacity:.45}
+  .opa .nm{font-weight:700}
+  .opa .sub{color:var(--mut);font-size:11px}
+  .opa .tag{border:1px solid #ffe6cb55;padding:0 5px;font-size:10px;color:var(--mut)}
+  .opa .sp{flex:1}
+  .opa .tg{width:26px;height:14px;border:1px solid var(--fg);position:relative;flex-shrink:0}
+  .opa .tg::after{content:"";position:absolute;top:2px;left:2px;width:8px;height:8px;background:var(--fg)}
+  .opa .tg.on{background:var(--fg)}
+  .opa .tg.on::after{left:14px;background:var(--bg)}
+  .opa .dim{opacity:.35}
+  .opa .drawer{position:absolute;top:0;right:0;bottom:0;width:62%;background:#062424;border-left:1px solid var(--fg);box-shadow:-12px 0 24px #0008;display:flex;flex-direction:column}
+  .opa .meta{display:grid;grid-template-columns:auto 1fr;gap:3px 12px;padding:10px 12px;border-bottom:1px solid var(--ln)}
+  .opa .meta span:nth-child(odd){color:var(--mut)}
+  .opa .md{padding:10px 12px;flex:1;overflow:hidden;font-family:system-ui,"PingFang SC";line-height:1.6}
+  .opa .md h5{margin:0 0 4px;font-size:13px}
+  .opa .md p{margin:0 0 6px;color:#ffe6cbcc}
+  .opa .tabs{display:flex;gap:0;border-bottom:1px solid var(--ln)}
+  .opa .tabs span{padding:6px 12px;color:var(--mut)}
+  .opa .tabs span.on{color:var(--fg);border-bottom:2px solid var(--fg)}
+  .opa .veil{position:absolute;inset:0;background:#000a;display:flex;align-items:center;justify-content:center}
+  .opa .dlg{width:420px;background:#062424;border:1px solid var(--fg)}
+  .opa .drop{margin:12px;border:1px dashed #ffe6cb66;padding:22px;text-align:center;color:var(--mut)}
+  .opa .ok{color:#8fd19b}
+  .opa .warn{color:#ffbd38}
+  .opa .chat{flex:1;padding:12px 14px;display:flex;flex-direction:column;gap:10px;font-family:system-ui,"PingFang SC"}
+  .opa .bub{align-self:flex-end;background:#ffe6cb14;border-radius:8px;padding:8px 10px;max-width:70%}
+  .opa .file{display:inline-flex;gap:6px;align-items:center;border:1px solid var(--ln);padding:3px 8px;border-radius:4px;font-family:ui-monospace,monospace;font-size:11px;margin-bottom:4px}
+  .opa .card{border:1px solid #ffbd3888;border-radius:6px;max-width:80%}
+  .opa .card .ch{padding:7px 10px;border-bottom:1px solid var(--ln);color:#ffbd38;font-family:ui-monospace,monospace;font-size:11px;letter-spacing:.08em}
+  .opa .card .cb{padding:8px 10px}
+  .opa .card .cf{display:flex;gap:8px;padding:8px 10px;border-top:1px solid var(--ln)}
+  .opa .composer{margin:0 14px 12px;border:1px solid #ffe6cb40;border-radius:8px;height:34px}
+</style>
+
+<h2>技能页 v2</h2>
+<p class="subtitle">改动：去掉"来源"（筛选和标签都去掉）；上传支持 文件夹 / .zip / 单个 SKILL.md 三种形式。</p>
+
+<div class="mockup">
+  <div class="mockup-header">① 主体：左侧筛选 + 右侧列表（每行一个开关）</div>
+  <div class="mockup-body">
+    <div class="opa">
+      <div class="side">
+        <div class="brand">PERSONAL<br>AGENT</div>
+        <div class="it">对话</div><div class="it">知识库</div><div class="it">用量</div><div class="gap"></div>
+        <div class="it">模型</div><div class="it on">技能</div><div class="it">MCP</div><div class="it">配置</div><div class="it">系统</div>
+      </div>
+      <div class="main">
+        <div class="top"><h4>技能</h4><span class="sub">3/4 已启用</span><span class="sp"></span><span class="search">搜索技能…</span><span class="btn pri">↑ 上传技能</span></div>
+        <div class="body">
+          <div class="box" style="width:150px;flex-shrink:0;align-self:flex-start">
+            <div class="bh">筛选</div>
+            <div class="flt on"><span>全部</span><span>4</span></div>
+            <div class="flt"><span>已启用</span><span>3</span></div>
+            <div class="flt"><span>已停用</span><span>1</span></div>
+            </div>
+          <div class="box" style="flex:1;min-width:0">
+            <div class="bh">全部 <small>停用 = 智能体暂时看不到它，文件保留</small></div>
+            <div class="row"><span class="tg on"></span><div><div class="nm">excel</div><div class="sub">读取、清洗、汇总 Excel / CSV，并输出图表或新表格的规范。</div></div><span class="sp"></span><span class="btn">查看</span></div>
+            <div class="row"><span class="tg on"></span><div><div class="nm">weekly-report</div><div class="sub">按公司模板整理周报：本周进展、风险、下周计划。</div></div><span class="sp"></span><span class="btn">查看</span></div>
+            <div class="row off"><span class="tg"></span><div><div class="nm">pdf-tools</div><div class="sub">合并、拆分、提取 PDF 文字与表格。</div></div><span class="sp"></span><span class="btn">查看</span></div>
+            <div class="row"><span class="tg on"></span><div><div class="nm">fund-rebalance</div><div class="sub">按全天候组合规则计算再平衡买卖金额。</div></div><span class="sp"></span><span class="btn">查看</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="mockup" style="margin-top:24px">
+  <div class="mockup-header">② 点"查看" → 右侧抽屉（只读）</div>
+  <div class="mockup-body">
+    <div class="opa" style="height:380px">
+      <div class="main dim"><div class="top"><h4>技能</h4></div></div>
+      <div class="drawer">
+        <div class="top"><h4>weekly-report</h4><span class="sp"></span><span class="sub">启用</span><span class="tg on"></span><span class="sub" style="margin-left:8px">✕</span></div>
+        <div class="meta"><span>描述</span><span>按公司模板整理周报：本周进展、风险、下周计划。</span><span>位置</span><span>agents/skills/weekly-report/</span><span>添加于</span><span>2026-10-18 16:20</span></div>
+        <div class="tabs"><span class="on">SKILL.md</span><span>文件（3）</span></div>
+        <div class="md"><h5># 周报整理规范</h5><p>## 结构</p><p>1. 本周进展：按项目列出，每条一句话 + 结果……</p><p>2. 风险与阻塞：……</p><p class="sub">（Markdown 渲染后只读展示）</p></div>
+        <div style="padding:10px 12px;display:flex;gap:8px;border-top:1px solid var(--ln)"><span class="btn danger">删除技能</span><span class="sp"></span><span class="sub">项目自带的技能不显示删除按钮</span></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="split" style="margin-top:24px">
+  <div class="mockup">
+    <div class="mockup-header">③ 点"上传技能" → 对话框</div>
+    <div class="mockup-body">
+      <div class="opa" style="height:380px">
+        <div class="main dim"><div class="top"><h4>技能</h4></div></div>
+        <div class="veil">
+          <div class="dlg">
+            <div class="top"><h4>上传技能</h4><span class="sp"></span><span class="sub">✕</span></div>
+            <div class="drop">拖入 技能文件夹 / .zip / SKILL.md<br><span style="font-size:10px">选择文件 · 选择文件夹</span><br><span style="font-size:10px;opacity:.7">文件夹或压缩包里需包含 SKILL.md</span></div>
+            <div style="padding:0 12px 8px">
+              <div class="ok">✓ 识别到技能：pdf-tools</div>
+              <div class="sub">合并、拆分、提取 PDF 文字与表格。· 4 个文件</div>
+              <div class="warn" style="margin-top:4px">⚠ 已有同名技能，安装将覆盖它</div>
+            </div>
+            <div style="display:flex;gap:8px;padding:10px 12px;border-top:1px solid var(--ln)"><span class="sp"></span><span class="btn">取消</span><span class="btn pri">安装</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="mockup">
+    <div class="mockup-header">④ 对话里发文件 → 智能体弹确认卡片</div>
+    <div class="mockup-body">
+      <div class="opa" style="height:380px">
+        <div class="main">
+          <div class="top"><h4>基金再平衡</h4></div>
+          <div class="chat">
+            <div class="bub"><div class="file">📁 fund-rebalance/ （含 SKILL.md）</div><div>把这个加成技能</div></div>
+            <div class="card">
+              <div class="ch">⚑ 安装技能 · 等你确认</div>
+              <div class="cb"><b>fund-rebalance</b><div class="sub" style="font-family:system-ui">按全天候组合规则计算再平衡买卖金额。· 2 个文件</div></div>
+              <div class="cf"><span class="btn">查看内容</span><span style="flex:1"></span><span class="btn">取消</span><span class="btn pri">安装</span></div>
+            </div>
+          </div>
+          <div class="composer"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+    </div>
+  </div>
+
+</body>
+</html>

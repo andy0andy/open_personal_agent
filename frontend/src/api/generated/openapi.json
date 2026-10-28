@@ -1,0 +1,6596 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "open-personal-agent",
+    "version": "0.1.0"
+  },
+  "paths": {
+    "/api/knowledge/items": {
+      "get": {
+        "summary": "List Items",
+        "description": "不带 q 时按时间倒序列出；带 q 时按相关程度检索（向量 + 关键词，忽略 offset）。\n可疑的记忆在页面上照常列出、检索得到（显示警告，设计 2026-10-23 6.6）；\nsuspicious 为真只给可疑且没确认的（\"可疑\"视图）。",
+        "operationId": "list_items_api_knowledge_items_get",
+        "parameters": [
+          {
+            "name": "kind",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/KnowledgeKind"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Kind"
+            }
+          },
+          {
+            "name": "tags",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "default": [],
+              "title": "Tags"
+            }
+          },
+          {
+            "name": "pinned",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "boolean"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Pinned"
+            }
+          },
+          {
+            "name": "suspicious",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "boolean"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Suspicious"
+            }
+          },
+          {
+            "name": "q",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "",
+              "title": "Q"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 200,
+              "minimum": 1,
+              "default": 100,
+              "title": "Limit"
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 0,
+              "title": "Offset"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/KnowledgeItem"
+                  },
+                  "title": "Response List Items Api Knowledge Items Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "summary": "Add Item",
+        "operationId": "add_item_api_knowledge_items_post",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/KnowledgeCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/KnowledgeItem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/knowledge/items/{item_id}": {
+      "patch": {
+        "summary": "Update Item",
+        "description": "改成常驻、或改了常驻条目的内容时，放不下就 409；文档片段不能设为常驻、\n也不能单独改（422）。",
+        "operationId": "update_item_api_knowledge_items__item_id__patch",
+        "parameters": [
+          {
+            "name": "item_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Item Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/KnowledgeUpdate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/KnowledgeItem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "summary": "Delete Item",
+        "operationId": "delete_item_api_knowledge_items__item_id__delete",
+        "parameters": [
+          {
+            "name": "item_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Item Id"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/knowledge/pinned": {
+      "get": {
+        "summary": "Pinned Summary",
+        "operationId": "pinned_summary_api_knowledge_pinned_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PinnedSummary"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/knowledge/items/{item_id}/context": {
+      "get": {
+        "summary": "Item Context",
+        "description": "一个条目及其前后各 window 段（回答里的出处点开时显示）。",
+        "operationId": "item_context_api_knowledge_items__item_id__context_get",
+        "parameters": [
+          {
+            "name": "item_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Item Id"
+            }
+          },
+          {
+            "name": "window",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 5,
+              "minimum": 0,
+              "default": 1,
+              "title": "Window"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ItemContext"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/knowledge/documents": {
+      "post": {
+        "summary": "Upload Document",
+        "description": "上传文档到知识库：请求体就是文件内容，文件名放在 X-File-Name 请求头；登记后台处理任务。",
+        "operationId": "upload_document_api_knowledge_documents_post",
+        "parameters": [
+          {
+            "name": "x-file-name",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "文件名，按 UTF-8 百分号编码",
+              "title": "X-File-Name"
+            },
+            "description": "文件名，按 UTF-8 百分号编码"
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/KnowledgeDocument"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "content": {
+            "application/octet-stream": {}
+          },
+          "required": true
+        }
+      },
+      "get": {
+        "summary": "List Documents",
+        "operationId": "list_documents_api_knowledge_documents_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/KnowledgeDocument"
+                  },
+                  "title": "Response List Documents Api Knowledge Documents Get"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/knowledge/documents/{document_id}": {
+      "get": {
+        "summary": "Get Document",
+        "operationId": "get_document_api_knowledge_documents__document_id__get",
+        "parameters": [
+          {
+            "name": "document_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Document Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/KnowledgeDocument"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "summary": "Delete Document",
+        "description": "删除文档：它的片段随之删除，回答里指向它的出处点开时显示\"已不在知识库里\"。",
+        "operationId": "delete_document_api_knowledge_documents__document_id__delete",
+        "parameters": [
+          {
+            "name": "document_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Document Id"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/knowledge/documents/{document_id}/reprocess": {
+      "post": {
+        "summary": "Reprocess Document",
+        "description": "重新处理（如向量模型恢复后）；正在处理时返回 409。",
+        "operationId": "reprocess_document_api_knowledge_documents__document_id__reprocess_post",
+        "parameters": [
+          {
+            "name": "document_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Document Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/KnowledgeDocument"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/knowledge/documents/{document_id}/content": {
+      "get": {
+        "summary": "Document Content",
+        "description": "文档原文件（在页面里打开，PDF 可在地址后加 #page=N 跳到某页）。边读边传。",
+        "operationId": "document_content_api_knowledge_documents__document_id__content_get",
+        "parameters": [
+          {
+            "name": "document_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Document Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/octet-stream": {}
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/settings/models": {
+      "get": {
+        "summary": "List Models",
+        "operationId": "list_models_api_settings_models_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ModelsView"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "summary": "Add Model",
+        "description": "新增模型：存进网关数据库，立即生效（不用重启网关）。",
+        "operationId": "add_model_api_settings_models_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ModelInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ModelView"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/settings/models/default": {
+      "put": {
+        "summary": "Set Default Chat",
+        "description": "改默认对话模型（只影响新会话的起点）；向量模型只读。",
+        "operationId": "set_default_chat_api_settings_models_default_put",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DefaultInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ModelsView"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/settings/models/{name}": {
+      "put": {
+        "summary": "Update Model",
+        "operationId": "update_model_api_settings_models__name__put",
+        "parameters": [
+          {
+            "name": "name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Name"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ModelInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ModelView"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "summary": "Delete Model",
+        "description": "删除页面加的模型；在用它的会话改用默认对话模型。",
+        "operationId": "delete_model_api_settings_models__name__delete",
+        "parameters": [
+          {
+            "name": "name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Name"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeleteResult"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/settings/models/{name}/test": {
+      "post": {
+        "summary": "Test Model",
+        "description": "真的调用一次（花几个 token）。",
+        "operationId": "test_model_api_settings_models__name__test_post",
+        "parameters": [
+          {
+            "name": "name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Name"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ModelTestResult"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/settings/mcp-servers": {
+      "get": {
+        "summary": "Mcp Servers",
+        "operationId": "mcp_servers_api_settings_mcp_servers_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/McpServersView"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "summary": "Add Mcp Servers",
+        "description": "加入一个或多个服务（手动添加、粘贴 JSON）：全部成功或全部不加。",
+        "operationId": "add_mcp_servers_api_settings_mcp_servers_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/McpServersInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/McpServersView"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/settings/mcp-servers/test": {
+      "post": {
+        "summary": "Test Mcp Server",
+        "description": "测试连接，不保存。",
+        "operationId": "test_mcp_server_api_settings_mcp_servers_test_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/McpServerInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/McpProbeResult"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/settings/mcp-servers/{name}": {
+      "put": {
+        "summary": "Update Mcp Server",
+        "operationId": "update_mcp_server_api_settings_mcp_servers__name__put",
+        "parameters": [
+          {
+            "name": "name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Name"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/McpServerInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/McpServersView"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "summary": "Toggle Mcp Server",
+        "description": "停用 = 断开连接，配置保留。",
+        "operationId": "toggle_mcp_server_api_settings_mcp_servers__name__patch",
+        "parameters": [
+          {
+            "name": "name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Name"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EnabledInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/McpServersView"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "summary": "Delete Mcp Server",
+        "operationId": "delete_mcp_server_api_settings_mcp_servers__name__delete",
+        "parameters": [
+          {
+            "name": "name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Name"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/settings/approval-rules": {
+      "get": {
+        "summary": "Approval Rules",
+        "operationId": "approval_rules_api_settings_approval_rules_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApprovalSettingsView"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/settings/approval-rules/tools/{tool}": {
+      "put": {
+        "summary": "Set Tool Action",
+        "description": "改一个工具的\"自动 / 先问\"（执行命令除外，它固定先问）。",
+        "operationId": "set_tool_action_api_settings_approval_rules_tools__tool__put",
+        "parameters": [
+          {
+            "name": "tool",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Tool"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ToolActionInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApprovalSettingsView"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/settings/skills": {
+      "get": {
+        "summary": "Skills",
+        "description": "每次现读技能目录（.workdata/skills/）：加了技能不用重新加载；最近使用时间取自技能用量。",
+        "operationId": "skills_api_settings_skills_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/SkillInfo"
+                  },
+                  "type": "array",
+                  "title": "Response Skills Api Settings Skills Get"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "summary": "Upload Skill",
+        "description": "上传技能（文件夹 / .zip / 单个 SKILL.md）：检查完才写进 .workdata/skills/，不许同名。",
+        "operationId": "upload_skill_api_settings_skills_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SkillUpload"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SkillInfo"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/settings/skills/{skill_id}": {
+      "get": {
+        "summary": "Skill Detail",
+        "operationId": "skill_detail_api_settings_skills__skill_id__get",
+        "parameters": [
+          {
+            "name": "skill_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Skill Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SkillDetail"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "summary": "Toggle Skill",
+        "description": "停用 = 智能体暂时看不到它，文件保留。",
+        "operationId": "toggle_skill_api_settings_skills__skill_id__patch",
+        "parameters": [
+          {
+            "name": "skill_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Skill Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EnabledInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SkillInfo"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "summary": "Delete Skill",
+        "operationId": "delete_skill_api_settings_skills__skill_id__delete",
+        "parameters": [
+          {
+            "name": "skill_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Skill Id"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/settings/files": {
+      "get": {
+        "summary": "Data Files",
+        "description": ".workdata 里各文件的位置与状态（D22）。",
+        "operationId": "data_files_api_settings_files_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/DataFileView"
+                  },
+                  "type": "array",
+                  "title": "Response Data Files Api Settings Files Get"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/settings/app": {
+      "get": {
+        "summary": "App Settings",
+        "operationId": "app_settings_api_settings_app_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/SettingView"
+                  },
+                  "type": "array",
+                  "title": "Response App Settings Api Settings App Get"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/settings/app/{key}": {
+      "put": {
+        "summary": "Update App Setting",
+        "description": "改一项设置；默认对话模型走模型页同一套检查（必须是网关里的对话模型）。",
+        "operationId": "update_app_setting_api_settings_app__key__put",
+        "parameters": [
+          {
+            "name": "key",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SettingValue"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SettingView"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "summary": "Reset App Setting",
+        "description": "删掉页面上存的值，回到默认值（或环境变量指定的值）。",
+        "operationId": "reset_app_setting_api_settings_app__key__delete",
+        "parameters": [
+          {
+            "name": "key",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Key"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SettingView"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/settings/reload": {
+      "post": {
+        "summary": "Reload",
+        "description": "重读 MCP 服务清单与审批规则、重连 MCP 服务、刷新模型信息。",
+        "operationId": "reload_api_settings_reload_post",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReloadResult"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/usage/summary": {
+      "get": {
+        "summary": "Usage Summary",
+        "description": "最近 days 天（含今天）的用量；按天分组用 tz 时区（浏览器所在时区）的日期。",
+        "operationId": "usage_summary_api_usage_summary_get",
+        "parameters": [
+          {
+            "name": "days",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 365,
+              "minimum": 1,
+              "default": 30,
+              "title": "Days"
+            }
+          },
+          {
+            "name": "tz",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "maxLength": 64,
+              "default": "UTC",
+              "title": "Tz"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UsageSummaryView"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/health": {
+      "get": {
+        "summary": "Health",
+        "operationId": "health_api_health_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": {
+                    "type": "string"
+                  },
+                  "type": "object",
+                  "title": "Response Health Api Health Get"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/session": {
+      "get": {
+        "summary": "Session",
+        "description": "发本机令牌（D25）：守卫只校验了 Host；同时下发同值的 Cookie，推送、图片、下载用它。",
+        "operationId": "session_api_session_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SessionView"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/models": {
+      "get": {
+        "summary": "List Models",
+        "operationId": "list_models_api_models_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/ModelInfo"
+                  },
+                  "type": "array",
+                  "title": "Response List Models Api Models Get"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/threads": {
+      "get": {
+        "summary": "List Threads",
+        "description": "会话列表；archived=true 时是归档的会话（设计 2026-10-23 6.5）。",
+        "operationId": "list_threads_api_threads_get",
+        "parameters": [
+          {
+            "name": "archived",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "default": false,
+              "title": "Archived"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Thread"
+                  },
+                  "title": "Response List Threads Api Threads Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "summary": "Create Thread",
+        "description": "新建会话。带上第一条消息时一次完成（设计 2026-10-23 6.4）：设好模型和权限、发起运行；\n中途失败就删掉刚建的会话并返回原因，落地页不会留下空会话。",
+        "operationId": "create_thread_api_threads_post",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ThreadCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ThreadCreated"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/threads/search": {
+      "get": {
+        "summary": "Search Threads",
+        "description": "会话搜索（设计 2026-10-23 6.1）：标题匹配（含已归档的）与内容里提到（会话索引）。\n要写在 /threads/{thread_id} 之前，否则 search 会被当成会话 ID。",
+        "operationId": "search_threads_api_threads_search_get",
+        "parameters": [
+          {
+            "name": "q",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "maxLength": 10000,
+              "default": "",
+              "title": "Q"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ThreadSearchResult"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/threads/order": {
+      "put": {
+        "summary": "Reorder Threads",
+        "description": "保存左侧会话的自定义顺序（拖拽排序）。",
+        "operationId": "reorder_threads_api_threads_order_put",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ThreadOrder"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/threads/{thread_id}": {
+      "patch": {
+        "summary": "Update Thread",
+        "description": "改会话的标题、模型或审批权限；模型必须是网关里的对话模型。",
+        "operationId": "update_thread_api_threads__thread_id__patch",
+        "parameters": [
+          {
+            "name": "thread_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Thread Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ThreadUpdate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Thread"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "summary": "Delete Thread",
+        "description": "删除会话及其全部对话内容（用量记录保留）；正在运行时返回 409。",
+        "operationId": "delete_thread_api_threads__thread_id__delete",
+        "parameters": [
+          {
+            "name": "thread_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Thread Id"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "summary": "Get Thread",
+        "operationId": "get_thread_api_threads__thread_id__get",
+        "parameters": [
+          {
+            "name": "thread_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Thread Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Thread"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/threads/{thread_id}/viewed": {
+      "post": {
+        "summary": "Mark Viewed",
+        "description": "看过了这个会话：清掉\"有新回答\"（打开会话、运行结束时正看着它时调用，设计 6.5）。",
+        "operationId": "mark_viewed_api_threads__thread_id__viewed_post",
+        "parameters": [
+          {
+            "name": "thread_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Thread Id"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/threads/{thread_id}/history": {
+      "get": {
+        "summary": "Thread History",
+        "operationId": "thread_history_api_threads__thread_id__history_get",
+        "parameters": [
+          {
+            "name": "thread_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Thread Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/RunHistory"
+                  },
+                  "title": "Response Thread History Api Threads  Thread Id  History Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/threads/{thread_id}/export": {
+      "get": {
+        "summary": "Export Thread",
+        "description": "导出 Markdown（设计 2026-10-23 6.2）：按界面历史生成，作为附件下载，文件名是会话标题。\n每轮的时间按 tz（浏览器所在时区）写。",
+        "operationId": "export_thread_api_threads__thread_id__export_get",
+        "parameters": [
+          {
+            "name": "thread_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Thread Id"
+            }
+          },
+          {
+            "name": "tz",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "maxLength": 64,
+              "default": "UTC",
+              "title": "Tz"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/threads/{thread_id}/usage": {
+      "get": {
+        "summary": "Thread Usage",
+        "operationId": "thread_usage_api_threads__thread_id__usage_get",
+        "parameters": [
+          {
+            "name": "thread_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Thread Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ThreadUsage"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/threads/{thread_id}/files": {
+      "get": {
+        "summary": "List Files",
+        "description": "会话里登记过的文件：上传与产物，按路径排序。",
+        "operationId": "list_files_api_threads__thread_id__files_get",
+        "parameters": [
+          {
+            "name": "thread_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Thread Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/WorkspaceFile"
+                  },
+                  "title": "Response List Files Api Threads  Thread Id  Files Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "summary": "Upload File",
+        "description": "上传文件到会话的 uploads/：请求体就是文件内容，文件名放在 X-File-Name 请求头。",
+        "operationId": "upload_file_api_threads__thread_id__files_post",
+        "parameters": [
+          {
+            "name": "thread_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Thread Id"
+            }
+          },
+          {
+            "name": "x-file-name",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "文件名，按 UTF-8 百分号编码",
+              "title": "X-File-Name"
+            },
+            "description": "文件名，按 UTF-8 百分号编码"
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WorkspaceFile"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "content": {
+            "application/octet-stream": {}
+          },
+          "required": true
+        }
+      }
+    },
+    "/api/threads/{thread_id}/files/{file_id}/content": {
+      "get": {
+        "summary": "File Content",
+        "description": "读取会话里的一个文件：默认在页面里直接显示，download=1 时作为附件下载。边读边传。",
+        "operationId": "file_content_api_threads__thread_id__files__file_id__content_get",
+        "parameters": [
+          {
+            "name": "thread_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Thread Id"
+            }
+          },
+          {
+            "name": "file_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "File Id"
+            }
+          },
+          {
+            "name": "download",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "default": false,
+              "title": "Download"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/octet-stream": {}
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/threads/{thread_id}/files/{file_id}/knowledge": {
+      "post": {
+        "summary": "Add File To Knowledge",
+        "description": "把会话里的一个文件（上传的或智能体生成的）加入知识库，登记后台处理任务。",
+        "operationId": "add_file_to_knowledge_api_threads__thread_id__files__file_id__knowledge_post",
+        "parameters": [
+          {
+            "name": "thread_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Thread Id"
+            }
+          },
+          {
+            "name": "file_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "File Id"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/KnowledgeDocument"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/threads/{thread_id}/files/{file_id}/table": {
+      "get": {
+        "summary": "File Table",
+        "description": "CSV / Excel 文件的前若干行（表格预览）；sheet 为 Excel 的工作表名，缺省为第一个。",
+        "operationId": "file_table_api_threads__thread_id__files__file_id__table_get",
+        "parameters": [
+          {
+            "name": "thread_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Thread Id"
+            }
+          },
+          {
+            "name": "file_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "File Id"
+            }
+          },
+          {
+            "name": "sheet",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Sheet"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TablePreview"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/threads/{thread_id}/runs": {
+      "post": {
+        "summary": "Start Run",
+        "operationId": "start_run_api_threads__thread_id__runs_post",
+        "parameters": [
+          {
+            "name": "thread_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Thread Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RunCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RunRecord"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/runs/{run_id}/cancel": {
+      "post": {
+        "summary": "Cancel Run",
+        "description": "停止运行；已结束的运行返回 409。",
+        "operationId": "cancel_run_api_runs__run_id__cancel_post",
+        "parameters": [
+          {
+            "name": "run_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Run Id"
+            }
+          }
+        ],
+        "responses": {
+          "202": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RunRecord"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/runs/{run_id}/interject": {
+      "post": {
+        "summary": "Interject",
+        "description": "运行中插话（设计 2026-10-23 6.3）：主智能体下一次调用模型前送达，送达时推 user.interjected。\n等审批时、运行已结束时 409。",
+        "operationId": "interject_api_runs__run_id__interject_post",
+        "parameters": [
+          {
+            "name": "run_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Run Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RunInterject"
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/runs/{run_id}/resume": {
+      "post": {
+        "summary": "Resume Run",
+        "description": "提交审批决定，运行接着跑；没有在等待审批（或已提交过）返回 409，决定对不上返回 422。",
+        "operationId": "resume_run_api_runs__run_id__resume_post",
+        "parameters": [
+          {
+            "name": "run_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Run Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ResumeRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RunRecord"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/runs/{run_id}/retry": {
+      "post": {
+        "summary": "Retry Run",
+        "description": "\"重试这一轮\"（D26）：从这次运行之前的存档分叉重跑，返回新运行；不能重试时返回 409。",
+        "operationId": "retry_run_api_runs__run_id__retry_post",
+        "parameters": [
+          {
+            "name": "run_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Run Id"
+            }
+          }
+        ],
+        "responses": {
+          "202": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RunRecord"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/runs/{run_id}/usage": {
+      "get": {
+        "summary": "Run Usage",
+        "description": "一次运行里每次模型调用的明细。",
+        "operationId": "run_usage_api_runs__run_id__usage_get",
+        "parameters": [
+          {
+            "name": "run_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Run Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/UsageRecord"
+                  },
+                  "title": "Response Run Usage Api Runs  Run Id  Usage Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/runs/{run_id}/events": {
+      "get": {
+        "summary": "Run Events",
+        "description": "推送运行事件，从 after 之后开始（页面已从界面历史显示了前面的部分）。\n浏览器断线重连时会带上 Last-Event-ID（总在 after 之后），从该序号之后继续推送。",
+        "operationId": "run_events_api_runs__run_id__events_get",
+        "parameters": [
+          {
+            "name": "run_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Run Id"
+            }
+          },
+          {
+            "name": "after",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 0,
+              "title": "After"
+            }
+          },
+          {
+            "name": "last-event-id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Last-Event-Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "text/event-stream": {
+                "itemSchema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "string"
+                    },
+                    "event": {
+                      "type": "string"
+                    },
+                    "id": {
+                      "type": "string"
+                    },
+                    "retry": {
+                      "type": "integer",
+                      "minimum": 0
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "ApprovalAnswer": {
+        "properties": {
+          "interrupt_id": {
+            "type": "string",
+            "title": "Interrupt Id"
+          },
+          "decisions": {
+            "items": {
+              "$ref": "#/components/schemas/ToolDecision"
+            },
+            "type": "array",
+            "title": "Decisions",
+            "default": []
+          }
+        },
+        "type": "object",
+        "required": [
+          "interrupt_id"
+        ],
+        "title": "ApprovalAnswer",
+        "description": "对一处暂停的答复：每个待审批的调用一个决定，顺序同 actions。"
+      },
+      "ApprovalMode": {
+        "type": "string",
+        "enum": [
+          "auto",
+          "ask"
+        ]
+      },
+      "ApprovalRuleView": {
+        "properties": {
+          "tool": {
+            "type": "string",
+            "title": "Tool"
+          },
+          "action": {
+            "$ref": "#/components/schemas/ApprovalMode"
+          }
+        },
+        "type": "object",
+        "required": [
+          "tool",
+          "action"
+        ],
+        "title": "ApprovalRuleView"
+      },
+      "ApprovalSettingsView": {
+        "properties": {
+          "mcp_default": {
+            "$ref": "#/components/schemas/ApprovalMode"
+          },
+          "rules": {
+            "items": {
+              "$ref": "#/components/schemas/ApprovalRuleView"
+            },
+            "type": "array",
+            "title": "Rules"
+          },
+          "tools": {
+            "items": {
+              "$ref": "#/components/schemas/ToolApproval"
+            },
+            "type": "array",
+            "title": "Tools"
+          }
+        },
+        "type": "object",
+        "required": [
+          "mcp_default",
+          "rules",
+          "tools"
+        ],
+        "title": "ApprovalSettingsView"
+      },
+      "CallerUsage": {
+        "properties": {
+          "calls": {
+            "type": "integer",
+            "title": "Calls",
+            "default": 0
+          },
+          "input_tokens": {
+            "type": "integer",
+            "title": "Input Tokens",
+            "default": 0
+          },
+          "output_tokens": {
+            "type": "integer",
+            "title": "Output Tokens",
+            "default": 0
+          },
+          "caller": {
+            "type": "string",
+            "title": "Caller"
+          }
+        },
+        "type": "object",
+        "required": [
+          "calls",
+          "input_tokens",
+          "output_tokens",
+          "caller"
+        ],
+        "title": "CallerUsage"
+      },
+      "ConversationHitView": {
+        "properties": {
+          "thread_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Thread Id"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "run_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Run Id"
+          },
+          "turn": {
+            "type": "integer",
+            "title": "Turn"
+          },
+          "snippet": {
+            "type": "string",
+            "title": "Snippet"
+          },
+          "terms": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Terms"
+          }
+        },
+        "type": "object",
+        "required": [
+          "thread_id",
+          "title",
+          "run_id",
+          "turn",
+          "snippet",
+          "terms"
+        ],
+        "title": "ConversationHitView",
+        "description": "会话内容里提到：哪个会话的第几轮，命中词前后的一小段原文（设计 2026-10-23 6.1）。"
+      },
+      "DataFileView": {
+        "properties": {
+          "path": {
+            "type": "string",
+            "title": "Path"
+          },
+          "purpose": {
+            "type": "string",
+            "title": "Purpose"
+          },
+          "state": {
+            "type": "string",
+            "enum": [
+              "ok",
+              "missing",
+              "error"
+            ],
+            "title": "State"
+          },
+          "detail": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Detail"
+          }
+        },
+        "type": "object",
+        "required": [
+          "path",
+          "purpose",
+          "state"
+        ],
+        "title": "DataFileView"
+      },
+      "DayUsage": {
+        "properties": {
+          "calls": {
+            "type": "integer",
+            "title": "Calls",
+            "default": 0
+          },
+          "input_tokens": {
+            "type": "integer",
+            "title": "Input Tokens",
+            "default": 0
+          },
+          "output_tokens": {
+            "type": "integer",
+            "title": "Output Tokens",
+            "default": 0
+          },
+          "day": {
+            "type": "string",
+            "format": "date",
+            "title": "Day"
+          }
+        },
+        "type": "object",
+        "required": [
+          "calls",
+          "input_tokens",
+          "output_tokens",
+          "day"
+        ],
+        "title": "DayUsage"
+      },
+      "DecisionType": {
+        "type": "string",
+        "enum": [
+          "approve",
+          "edit",
+          "reject"
+        ]
+      },
+      "DefaultInput": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name"
+          }
+        },
+        "type": "object",
+        "required": [
+          "name"
+        ],
+        "title": "DefaultInput"
+      },
+      "DeleteResult": {
+        "properties": {
+          "reassigned": {
+            "type": "integer",
+            "title": "Reassigned"
+          }
+        },
+        "type": "object",
+        "required": [
+          "reassigned"
+        ],
+        "title": "DeleteResult"
+      },
+      "DocumentStatus": {
+        "type": "string",
+        "enum": [
+          "pending",
+          "processing",
+          "done",
+          "failed"
+        ]
+      },
+      "EnabledInput": {
+        "properties": {
+          "enabled": {
+            "type": "boolean",
+            "title": "Enabled"
+          }
+        },
+        "type": "object",
+        "required": [
+          "enabled"
+        ],
+        "title": "EnabledInput"
+      },
+      "EventEnvelope": {
+        "properties": {
+          "seq": {
+            "type": "integer",
+            "title": "Seq"
+          },
+          "run_id": {
+            "type": "string",
+            "title": "Run Id"
+          },
+          "ts": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Ts"
+          },
+          "type": {
+            "type": "string",
+            "title": "Type"
+          },
+          "agent_path": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Agent Path"
+          },
+          "data": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Data"
+          }
+        },
+        "type": "object",
+        "required": [
+          "seq",
+          "run_id",
+          "ts",
+          "type",
+          "agent_path",
+          "data"
+        ],
+        "title": "EventEnvelope",
+        "description": "推给浏览器、存入 run_events 表的统一格式。"
+      },
+      "FileSource": {
+        "type": "string",
+        "enum": [
+          "upload",
+          "output"
+        ]
+      },
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "type": "array",
+            "title": "Detail"
+          }
+        },
+        "type": "object",
+        "title": "HTTPValidationError"
+      },
+      "ItemContext": {
+        "properties": {
+          "target_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Target Id"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/KnowledgeItem"
+            },
+            "type": "array",
+            "title": "Items"
+          },
+          "document": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/KnowledgeDocument"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "target_id",
+          "items",
+          "document"
+        ],
+        "title": "ItemContext",
+        "description": "一个条目及其前后的片段（文档片段）；记忆条目只有它自己。"
+      },
+      "JsonValue": {},
+      "KnowledgeCreate": {
+        "properties": {
+          "content": {
+            "type": "string",
+            "maxLength": 20000,
+            "minLength": 1,
+            "title": "Content"
+          },
+          "tags": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Tags",
+            "default": []
+          },
+          "pinned": {
+            "type": "boolean",
+            "title": "Pinned",
+            "default": false
+          }
+        },
+        "type": "object",
+        "required": [
+          "content"
+        ],
+        "title": "KnowledgeCreate",
+        "description": "手动添加一条记忆。"
+      },
+      "KnowledgeDocument": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "filename": {
+            "type": "string",
+            "title": "Filename"
+          },
+          "media_type": {
+            "type": "string",
+            "title": "Media Type"
+          },
+          "size": {
+            "type": "integer",
+            "title": "Size"
+          },
+          "status": {
+            "$ref": "#/components/schemas/DocumentStatus"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          },
+          "chunk_total": {
+            "type": "integer",
+            "title": "Chunk Total"
+          },
+          "item_count": {
+            "type": "integer",
+            "title": "Item Count"
+          },
+          "source_thread_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source Thread Id"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Updated At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "title",
+          "filename",
+          "media_type",
+          "size",
+          "status",
+          "error",
+          "chunk_total",
+          "item_count",
+          "source_thread_id",
+          "created_at",
+          "updated_at"
+        ],
+        "title": "KnowledgeDocument"
+      },
+      "KnowledgeItem": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "kind": {
+            "$ref": "#/components/schemas/KnowledgeKind"
+          },
+          "tags": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Tags"
+          },
+          "pinned": {
+            "type": "boolean",
+            "title": "Pinned"
+          },
+          "content": {
+            "type": "string",
+            "title": "Content"
+          },
+          "source": {
+            "$ref": "#/components/schemas/KnowledgeSource"
+          },
+          "source_thread_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source Thread Id"
+          },
+          "source_run_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source Run Id"
+          },
+          "document_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Document Id"
+          },
+          "seq": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Seq"
+          },
+          "section_path": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Section Path"
+          },
+          "page": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Page"
+          },
+          "document_title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Document Title"
+          },
+          "token_count": {
+            "type": "integer",
+            "title": "Token Count"
+          },
+          "embedding_model": {
+            "type": "string",
+            "title": "Embedding Model"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Updated At"
+          },
+          "suspicious": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Suspicious"
+          },
+          "trusted": {
+            "type": "boolean",
+            "title": "Trusted",
+            "default": false
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "kind",
+          "tags",
+          "pinned",
+          "content",
+          "source",
+          "source_thread_id",
+          "source_run_id",
+          "document_id",
+          "seq",
+          "section_path",
+          "page",
+          "document_title",
+          "token_count",
+          "embedding_model",
+          "created_at",
+          "updated_at",
+          "suspicious",
+          "trusted"
+        ],
+        "title": "KnowledgeItem"
+      },
+      "KnowledgeKind": {
+        "type": "string",
+        "enum": [
+          "memory",
+          "document_chunk"
+        ]
+      },
+      "KnowledgeSource": {
+        "type": "string",
+        "enum": [
+          "conversation",
+          "document",
+          "manual"
+        ]
+      },
+      "KnowledgeUpdate": {
+        "properties": {
+          "content": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 20000,
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Content"
+          },
+          "tags": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tags"
+          },
+          "pinned": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pinned"
+          },
+          "trusted": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Trusted"
+          }
+        },
+        "type": "object",
+        "title": "KnowledgeUpdate",
+        "description": "修改条目：只改给出的字段。trusted：可疑的记忆确认无害（设计 2026-10-23 6.6）。"
+      },
+      "McpProbeResult": {
+        "properties": {
+          "ok": {
+            "type": "boolean",
+            "title": "Ok"
+          },
+          "tools": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Tools",
+            "default": []
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          }
+        },
+        "type": "object",
+        "required": [
+          "ok"
+        ],
+        "title": "McpProbeResult",
+        "description": "测试连接的结果（管理页面的\"测试连接\"）：连上时列出工具名，失败时给一句中文原因。"
+      },
+      "McpServerInput": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "description": {
+            "type": "string",
+            "title": "Description",
+            "default": ""
+          },
+          "transport": {
+            "type": "string",
+            "enum": [
+              "stdio",
+              "streamable_http",
+              "sse"
+            ],
+            "title": "Transport",
+            "default": "stdio"
+          },
+          "command": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Command"
+          },
+          "args": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Args",
+            "default": []
+          },
+          "env": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "type": "object",
+            "title": "Env",
+            "default": {}
+          },
+          "url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Url"
+          },
+          "headers": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "type": "object",
+            "title": "Headers",
+            "default": {}
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "name"
+        ],
+        "title": "McpServerInput",
+        "description": "页面上填的一个服务（未替换 ${变量} 的原文）；名字同时是工具名前缀。"
+      },
+      "McpServerState": {
+        "type": "string",
+        "enum": [
+          "disabled",
+          "connecting",
+          "connected",
+          "reconnecting",
+          "failed"
+        ]
+      },
+      "McpServerView": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "description": {
+            "type": "string",
+            "title": "Description"
+          },
+          "transport": {
+            "type": "string",
+            "title": "Transport"
+          },
+          "state": {
+            "$ref": "#/components/schemas/McpServerState"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          },
+          "tools": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Tools",
+            "default": []
+          },
+          "missing_env": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Missing Env"
+          },
+          "config": {
+            "$ref": "#/components/schemas/McpServerInput"
+          }
+        },
+        "type": "object",
+        "required": [
+          "name",
+          "description",
+          "transport",
+          "state",
+          "missing_env",
+          "config"
+        ],
+        "title": "McpServerView"
+      },
+      "McpServersInput": {
+        "properties": {
+          "servers": {
+            "items": {
+              "$ref": "#/components/schemas/McpServerInput"
+            },
+            "type": "array",
+            "title": "Servers"
+          }
+        },
+        "type": "object",
+        "required": [
+          "servers"
+        ],
+        "title": "McpServersInput"
+      },
+      "McpServersView": {
+        "properties": {
+          "servers": {
+            "items": {
+              "$ref": "#/components/schemas/McpServerView"
+            },
+            "type": "array",
+            "title": "Servers"
+          },
+          "config_error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Config Error"
+          }
+        },
+        "type": "object",
+        "required": [
+          "servers",
+          "config_error"
+        ],
+        "title": "McpServersView"
+      },
+      "ModelInfo": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "mode": {
+            "type": "string",
+            "title": "Mode",
+            "default": "chat"
+          },
+          "max_input_tokens": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max Input Tokens"
+          },
+          "input_cost_per_token": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Input Cost Per Token"
+          },
+          "output_cost_per_token": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Output Cost Per Token"
+          },
+          "supports_reasoning": {
+            "type": "boolean",
+            "title": "Supports Reasoning",
+            "default": false
+          },
+          "supports_vision": {
+            "type": "boolean",
+            "title": "Supports Vision",
+            "default": false
+          },
+          "id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Id"
+          },
+          "upstream": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Upstream"
+          },
+          "max_output_tokens": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max Output Tokens"
+          },
+          "supports_function_calling": {
+            "type": "boolean",
+            "title": "Supports Function Calling",
+            "default": false
+          },
+          "supports_prompt_caching": {
+            "type": "boolean",
+            "title": "Supports Prompt Caching",
+            "default": false
+          }
+        },
+        "type": "object",
+        "required": [
+          "name",
+          "mode",
+          "max_input_tokens",
+          "input_cost_per_token",
+          "output_cost_per_token",
+          "supports_reasoning",
+          "supports_vision",
+          "id",
+          "upstream",
+          "max_output_tokens",
+          "supports_function_calling",
+          "supports_prompt_caching"
+        ],
+        "title": "ModelInfo",
+        "description": "网关里登记的一个具体模型版本。"
+      },
+      "ModelInput": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,63}$",
+            "title": "Name"
+          },
+          "source": {
+            "type": "string",
+            "title": "Source"
+          },
+          "upstream_id": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Upstream Id"
+          },
+          "mode": {
+            "type": "string",
+            "enum": [
+              "chat",
+              "embedding"
+            ],
+            "title": "Mode",
+            "default": "chat"
+          },
+          "max_input_tokens": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "exclusiveMinimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max Input Tokens"
+          },
+          "max_output_tokens": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "exclusiveMinimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max Output Tokens"
+          },
+          "price_input": {
+            "type": "number",
+            "minimum": 0.0,
+            "title": "Price Input"
+          },
+          "price_output": {
+            "type": "number",
+            "minimum": 0.0,
+            "title": "Price Output"
+          },
+          "supports_reasoning": {
+            "type": "boolean",
+            "title": "Supports Reasoning",
+            "default": false
+          },
+          "supports_vision": {
+            "type": "boolean",
+            "title": "Supports Vision",
+            "default": false
+          },
+          "supports_function_calling": {
+            "type": "boolean",
+            "title": "Supports Function Calling",
+            "default": false
+          },
+          "supports_prompt_caching": {
+            "type": "boolean",
+            "title": "Supports Prompt Caching",
+            "default": false
+          }
+        },
+        "type": "object",
+        "required": [
+          "name",
+          "source",
+          "upstream_id",
+          "price_input",
+          "price_output"
+        ],
+        "title": "ModelInput",
+        "description": "页面上新增 / 修改的一个模型。价格是\"美元 / 每百万 token\"，免费填 0（任何统计都不用价格）。"
+      },
+      "ModelSource": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "label": {
+            "type": "string",
+            "title": "Label"
+          },
+          "mode": {
+            "type": "string",
+            "enum": [
+              "chat",
+              "embedding"
+            ],
+            "title": "Mode"
+          },
+          "prefix": {
+            "type": "string",
+            "title": "Prefix"
+          },
+          "api_base": {
+            "type": "string",
+            "title": "Api Base"
+          },
+          "api_key": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Api Key"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "label",
+          "mode",
+          "prefix",
+          "api_base"
+        ],
+        "title": "ModelSource",
+        "description": "模型页\"新增模型\"的来源：模型经它转发。\n\n密钥只写 .env 里已有变量的引用（页面不收密钥，D21）。"
+      },
+      "ModelTestResult": {
+        "properties": {
+          "ok": {
+            "type": "boolean",
+            "title": "Ok"
+          },
+          "latency_ms": {
+            "type": "integer",
+            "title": "Latency Ms"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          }
+        },
+        "type": "object",
+        "required": [
+          "ok",
+          "latency_ms"
+        ],
+        "title": "ModelTestResult",
+        "description": "模型页的\"测试\"：真的调一次（几个 token），记下用了多久或失败原因。"
+      },
+      "ModelUsage": {
+        "properties": {
+          "model": {
+            "type": "string",
+            "title": "Model"
+          },
+          "calls": {
+            "type": "integer",
+            "title": "Calls"
+          },
+          "input_tokens": {
+            "type": "integer",
+            "title": "Input Tokens"
+          },
+          "output_tokens": {
+            "type": "integer",
+            "title": "Output Tokens"
+          }
+        },
+        "type": "object",
+        "required": [
+          "model",
+          "calls",
+          "input_tokens",
+          "output_tokens"
+        ],
+        "title": "ModelUsage",
+        "description": "按实际模型版本汇总。"
+      },
+      "ModelUsageSummary": {
+        "properties": {
+          "calls": {
+            "type": "integer",
+            "title": "Calls",
+            "default": 0
+          },
+          "input_tokens": {
+            "type": "integer",
+            "title": "Input Tokens",
+            "default": 0
+          },
+          "output_tokens": {
+            "type": "integer",
+            "title": "Output Tokens",
+            "default": 0
+          },
+          "model": {
+            "type": "string",
+            "title": "Model"
+          }
+        },
+        "type": "object",
+        "required": [
+          "calls",
+          "input_tokens",
+          "output_tokens",
+          "model"
+        ],
+        "title": "ModelUsageSummary"
+      },
+      "ModelView": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "mode": {
+            "type": "string",
+            "title": "Mode",
+            "default": "chat"
+          },
+          "max_input_tokens": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max Input Tokens"
+          },
+          "input_cost_per_token": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Input Cost Per Token"
+          },
+          "output_cost_per_token": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Output Cost Per Token"
+          },
+          "supports_reasoning": {
+            "type": "boolean",
+            "title": "Supports Reasoning",
+            "default": false
+          },
+          "supports_vision": {
+            "type": "boolean",
+            "title": "Supports Vision",
+            "default": false
+          },
+          "id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Id"
+          },
+          "upstream": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Upstream"
+          },
+          "max_output_tokens": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max Output Tokens"
+          },
+          "supports_function_calling": {
+            "type": "boolean",
+            "title": "Supports Function Calling",
+            "default": false
+          },
+          "supports_prompt_caching": {
+            "type": "boolean",
+            "title": "Supports Prompt Caching",
+            "default": false
+          },
+          "source_label": {
+            "type": "string",
+            "title": "Source Label"
+          },
+          "sessions": {
+            "type": "integer",
+            "title": "Sessions"
+          },
+          "is_default_chat": {
+            "type": "boolean",
+            "title": "Is Default Chat"
+          },
+          "is_default_embedding": {
+            "type": "boolean",
+            "title": "Is Default Embedding"
+          }
+        },
+        "type": "object",
+        "required": [
+          "name",
+          "mode",
+          "max_input_tokens",
+          "input_cost_per_token",
+          "output_cost_per_token",
+          "supports_reasoning",
+          "supports_vision",
+          "id",
+          "upstream",
+          "max_output_tokens",
+          "supports_function_calling",
+          "supports_prompt_caching",
+          "source_label",
+          "sessions",
+          "is_default_chat",
+          "is_default_embedding"
+        ],
+        "title": "ModelView"
+      },
+      "ModelsView": {
+        "properties": {
+          "models": {
+            "items": {
+              "$ref": "#/components/schemas/ModelView"
+            },
+            "type": "array",
+            "title": "Models"
+          },
+          "default_chat": {
+            "type": "string",
+            "title": "Default Chat"
+          },
+          "default_embedding": {
+            "type": "string",
+            "title": "Default Embedding"
+          },
+          "sources": {
+            "items": {
+              "$ref": "#/components/schemas/ModelSource"
+            },
+            "type": "array",
+            "title": "Sources"
+          }
+        },
+        "type": "object",
+        "required": [
+          "models",
+          "default_chat",
+          "default_embedding",
+          "sources"
+        ],
+        "title": "ModelsView"
+      },
+      "NamedCount": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "count": {
+            "type": "integer",
+            "title": "Count"
+          }
+        },
+        "type": "object",
+        "required": [
+          "name",
+          "count"
+        ],
+        "title": "NamedCount",
+        "description": "工具或技能用了几次（设计 2026-10-23 6.8）。"
+      },
+      "PinnedSummary": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/KnowledgeItem"
+            },
+            "type": "array",
+            "title": "Items"
+          },
+          "total_tokens": {
+            "type": "integer",
+            "title": "Total Tokens"
+          },
+          "token_limit": {
+            "type": "integer",
+            "title": "Token Limit"
+          }
+        },
+        "type": "object",
+        "required": [
+          "items",
+          "total_tokens",
+          "token_limit"
+        ],
+        "title": "PinnedSummary",
+        "description": "常驻条目（个人画像）：每次对话都会带上；总量有上限（硬限制，设计 2026-10-23 6.6）。"
+      },
+      "ReloadResult": {
+        "properties": {
+          "servers": {
+            "$ref": "#/components/schemas/McpServersView"
+          },
+          "approvals": {
+            "$ref": "#/components/schemas/ApprovalSettingsView"
+          }
+        },
+        "type": "object",
+        "required": [
+          "servers",
+          "approvals"
+        ],
+        "title": "ReloadResult"
+      },
+      "ResumeRequest": {
+        "properties": {
+          "answers": {
+            "items": {
+              "$ref": "#/components/schemas/ApprovalAnswer"
+            },
+            "type": "array",
+            "maxItems": 10,
+            "minItems": 1,
+            "title": "Answers"
+          }
+        },
+        "type": "object",
+        "required": [
+          "answers"
+        ],
+        "title": "ResumeRequest",
+        "description": "审批决定（POST /runs/{id}/resume）：每处暂停一个答复。"
+      },
+      "RunAttachment": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "path": {
+            "type": "string",
+            "title": "Path"
+          },
+          "media_type": {
+            "type": "string",
+            "title": "Media Type"
+          },
+          "size": {
+            "type": "integer",
+            "title": "Size"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "path",
+          "media_type",
+          "size"
+        ],
+        "title": "RunAttachment",
+        "description": "随消息附带的文件。运行记录里存一份，界面历史据此在用户消息下显示。"
+      },
+      "RunCreate": {
+        "properties": {
+          "message": {
+            "type": "string",
+            "maxLength": 100000,
+            "minLength": 1,
+            "title": "Message"
+          },
+          "attachments": {
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "type": "array",
+            "maxItems": 10,
+            "title": "Attachments",
+            "default": []
+          }
+        },
+        "type": "object",
+        "required": [
+          "message"
+        ],
+        "title": "RunCreate"
+      },
+      "RunHistory": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "thread_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Thread Id"
+          },
+          "status": {
+            "$ref": "#/components/schemas/RunStatus"
+          },
+          "model": {
+            "type": "string",
+            "title": "Model"
+          },
+          "permission": {
+            "type": "string",
+            "enum": [
+              "ask",
+              "ask_execute",
+              "skip"
+            ],
+            "title": "Permission",
+            "default": "ask"
+          },
+          "message": {
+            "type": "string",
+            "title": "Message"
+          },
+          "attachments": {
+            "items": {
+              "$ref": "#/components/schemas/RunAttachment"
+            },
+            "type": "array",
+            "title": "Attachments"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "retry_of": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Retry Of"
+          },
+          "events": {
+            "items": {
+              "$ref": "#/components/schemas/EventEnvelope"
+            },
+            "type": "array",
+            "title": "Events"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "thread_id",
+          "status",
+          "model",
+          "message",
+          "attachments",
+          "error",
+          "created_at",
+          "events"
+        ],
+        "title": "RunHistory"
+      },
+      "RunInterject": {
+        "properties": {
+          "message": {
+            "type": "string",
+            "maxLength": 100000,
+            "minLength": 1,
+            "title": "Message"
+          }
+        },
+        "type": "object",
+        "required": [
+          "message"
+        ],
+        "title": "RunInterject",
+        "description": "运行中插话（POST /runs/{id}/interject，设计 2026-10-23 6.3）。"
+      },
+      "RunRecord": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "thread_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Thread Id"
+          },
+          "status": {
+            "$ref": "#/components/schemas/RunStatus"
+          },
+          "model": {
+            "type": "string",
+            "title": "Model"
+          },
+          "permission": {
+            "type": "string",
+            "enum": [
+              "ask",
+              "ask_execute",
+              "skip"
+            ],
+            "title": "Permission",
+            "default": "ask"
+          },
+          "message": {
+            "type": "string",
+            "title": "Message"
+          },
+          "attachments": {
+            "items": {
+              "$ref": "#/components/schemas/RunAttachment"
+            },
+            "type": "array",
+            "title": "Attachments"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "retry_of": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Retry Of"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "thread_id",
+          "status",
+          "model",
+          "message",
+          "attachments",
+          "error",
+          "created_at"
+        ],
+        "title": "RunRecord"
+      },
+      "RunStatus": {
+        "type": "string",
+        "enum": [
+          "queued",
+          "running",
+          "interrupted",
+          "completed",
+          "failed",
+          "cancelled"
+        ]
+      },
+      "SessionView": {
+        "properties": {
+          "token": {
+            "type": "string",
+            "title": "Token"
+          }
+        },
+        "type": "object",
+        "required": [
+          "token"
+        ],
+        "title": "SessionView"
+      },
+      "SettingValue": {
+        "properties": {
+          "value": {
+            "$ref": "#/components/schemas/JsonValue"
+          }
+        },
+        "type": "object",
+        "required": [
+          "value"
+        ],
+        "title": "SettingValue"
+      },
+      "SettingView": {
+        "properties": {
+          "key": {
+            "type": "string",
+            "title": "Key"
+          },
+          "label": {
+            "type": "string",
+            "title": "Label"
+          },
+          "value": {
+            "$ref": "#/components/schemas/JsonValue"
+          },
+          "upcoming": {
+            "$ref": "#/components/schemas/JsonValue"
+          },
+          "default": {
+            "$ref": "#/components/schemas/JsonValue"
+          },
+          "source": {
+            "type": "string",
+            "enum": [
+              "default",
+              "db",
+              "env"
+            ],
+            "title": "Source"
+          },
+          "env_name": {
+            "type": "string",
+            "title": "Env Name"
+          },
+          "editable": {
+            "type": "boolean",
+            "title": "Editable"
+          },
+          "apply": {
+            "type": "string",
+            "enum": [
+              "now",
+              "restart"
+            ],
+            "title": "Apply"
+          },
+          "note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Note"
+          },
+          "restart_pending": {
+            "type": "boolean",
+            "title": "Restart Pending"
+          }
+        },
+        "type": "object",
+        "required": [
+          "key",
+          "label",
+          "value",
+          "upcoming",
+          "default",
+          "source",
+          "env_name",
+          "editable",
+          "apply",
+          "restart_pending"
+        ],
+        "title": "SettingView",
+        "description": "设置页上的一行：当前值、来源、能否在页面上改、改了何时生效。"
+      },
+      "SkillDetail": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id",
+            "default": ""
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "description": {
+            "type": "string",
+            "title": "Description"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          },
+          "enabled": {
+            "type": "boolean",
+            "title": "Enabled",
+            "default": true
+          },
+          "location": {
+            "type": "string",
+            "title": "Location",
+            "default": ""
+          },
+          "added_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Added At"
+          },
+          "notice": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Notice"
+          },
+          "last_used_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Used At"
+          },
+          "body": {
+            "type": "string",
+            "title": "Body"
+          },
+          "files": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Files"
+          }
+        },
+        "type": "object",
+        "required": [
+          "name",
+          "description",
+          "body",
+          "files"
+        ],
+        "title": "SkillDetail"
+      },
+      "SkillInfo": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id",
+            "default": ""
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "description": {
+            "type": "string",
+            "title": "Description"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          },
+          "enabled": {
+            "type": "boolean",
+            "title": "Enabled",
+            "default": true
+          },
+          "location": {
+            "type": "string",
+            "title": "Location",
+            "default": ""
+          },
+          "added_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Added At"
+          },
+          "notice": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Notice"
+          },
+          "last_used_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Used At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "name",
+          "description"
+        ],
+        "title": "SkillInfo"
+      },
+      "SkillUpload": {
+        "properties": {
+          "files": {
+            "items": {
+              "$ref": "#/components/schemas/SkillUploadFile"
+            },
+            "type": "array",
+            "title": "Files"
+          }
+        },
+        "type": "object",
+        "required": [
+          "files"
+        ],
+        "title": "SkillUpload",
+        "description": "上传技能（D21）：文件内容用 base64 放进 JSON，不依赖表单上传的库。"
+      },
+      "SkillUploadFile": {
+        "properties": {
+          "path": {
+            "type": "string",
+            "title": "Path"
+          },
+          "content": {
+            "type": "string",
+            "title": "Content"
+          }
+        },
+        "type": "object",
+        "required": [
+          "path",
+          "content"
+        ],
+        "title": "SkillUploadFile"
+      },
+      "TablePreview": {
+        "properties": {
+          "sheets": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Sheets"
+          },
+          "sheet": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sheet"
+          },
+          "rows": {
+            "items": {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            "type": "array",
+            "title": "Rows"
+          },
+          "truncated": {
+            "type": "boolean",
+            "title": "Truncated"
+          },
+          "columns_truncated": {
+            "type": "boolean",
+            "title": "Columns Truncated",
+            "default": false
+          }
+        },
+        "type": "object",
+        "required": [
+          "sheets",
+          "sheet",
+          "rows",
+          "truncated"
+        ],
+        "title": "TablePreview"
+      },
+      "Thread": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "short_id": {
+            "type": "string",
+            "title": "Short Id"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "model": {
+            "type": "string",
+            "title": "Model"
+          },
+          "permission_mode": {
+            "type": "string",
+            "enum": [
+              "ask",
+              "ask_execute",
+              "skip"
+            ],
+            "title": "Permission Mode"
+          },
+          "archived": {
+            "type": "boolean",
+            "title": "Archived",
+            "default": false
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Updated At"
+          },
+          "activity": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "running",
+                  "waiting",
+                  "failed",
+                  "new"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Activity"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "short_id",
+          "title",
+          "model",
+          "permission_mode",
+          "created_at",
+          "updated_at"
+        ],
+        "title": "Thread"
+      },
+      "ThreadCreate": {
+        "properties": {
+          "title": {
+            "type": "string",
+            "title": "Title",
+            "default": ""
+          },
+          "model": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Model"
+          },
+          "permission_mode": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "ask",
+                  "ask_execute",
+                  "skip"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Permission Mode"
+          },
+          "message": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 100000,
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Message"
+          }
+        },
+        "type": "object",
+        "title": "ThreadCreate",
+        "description": "新建会话；带上第一条消息时一次完成：设好模型和权限、发起运行（设计 2026-10-23 6.4）。"
+      },
+      "ThreadCreated": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "short_id": {
+            "type": "string",
+            "title": "Short Id"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "model": {
+            "type": "string",
+            "title": "Model"
+          },
+          "permission_mode": {
+            "type": "string",
+            "enum": [
+              "ask",
+              "ask_execute",
+              "skip"
+            ],
+            "title": "Permission Mode"
+          },
+          "archived": {
+            "type": "boolean",
+            "title": "Archived",
+            "default": false
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Updated At"
+          },
+          "activity": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "running",
+                  "waiting",
+                  "failed",
+                  "new"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Activity"
+          },
+          "run": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/RunRecord"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "short_id",
+          "title",
+          "model",
+          "permission_mode",
+          "created_at",
+          "updated_at"
+        ],
+        "title": "ThreadCreated",
+        "description": "新建的会话；带了第一条消息时还有发起的那次运行（设计 2026-10-23 6.4）。"
+      },
+      "ThreadOrder": {
+        "properties": {
+          "thread_ids": {
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "type": "array",
+            "minItems": 1,
+            "title": "Thread Ids"
+          }
+        },
+        "type": "object",
+        "required": [
+          "thread_ids"
+        ],
+        "title": "ThreadOrder",
+        "description": "左侧会话的自定义顺序：从上到下的会话 ID。"
+      },
+      "ThreadSearchResult": {
+        "properties": {
+          "titles": {
+            "items": {
+              "$ref": "#/components/schemas/Thread"
+            },
+            "type": "array",
+            "title": "Titles"
+          },
+          "hits": {
+            "items": {
+              "$ref": "#/components/schemas/ConversationHitView"
+            },
+            "type": "array",
+            "title": "Hits"
+          }
+        },
+        "type": "object",
+        "required": [
+          "titles",
+          "hits"
+        ],
+        "title": "ThreadSearchResult"
+      },
+      "ThreadUpdate": {
+        "properties": {
+          "title": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 100,
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title"
+          },
+          "model": {
+            "anyOf": [
+              {
+                "type": "string",
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Model"
+          },
+          "permission_mode": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "ask",
+                  "ask_execute",
+                  "skip"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Permission Mode"
+          },
+          "archived": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Archived"
+          }
+        },
+        "type": "object",
+        "title": "ThreadUpdate",
+        "description": "改会话的标题、模型或审批权限（会话设置都在会话上，设计 2026-10-19 4.1、4.2）。"
+      },
+      "ThreadUsage": {
+        "properties": {
+          "total": {
+            "$ref": "#/components/schemas/UsageTotals"
+          },
+          "by_model": {
+            "items": {
+              "$ref": "#/components/schemas/ModelUsage"
+            },
+            "type": "array",
+            "title": "By Model"
+          }
+        },
+        "type": "object",
+        "required": [
+          "total",
+          "by_model"
+        ],
+        "title": "ThreadUsage",
+        "description": "一个会话的累计用量：合计与按模型版本拆分。"
+      },
+      "ThreadUsageView": {
+        "properties": {
+          "calls": {
+            "type": "integer",
+            "title": "Calls",
+            "default": 0
+          },
+          "input_tokens": {
+            "type": "integer",
+            "title": "Input Tokens",
+            "default": 0
+          },
+          "output_tokens": {
+            "type": "integer",
+            "title": "Output Tokens",
+            "default": 0
+          },
+          "thread_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Thread Id"
+          },
+          "title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title"
+          }
+        },
+        "type": "object",
+        "required": [
+          "calls",
+          "input_tokens",
+          "output_tokens",
+          "thread_id",
+          "title"
+        ],
+        "title": "ThreadUsageView"
+      },
+      "ToolActionInput": {
+        "properties": {
+          "action": {
+            "$ref": "#/components/schemas/ApprovalMode"
+          }
+        },
+        "type": "object",
+        "required": [
+          "action"
+        ],
+        "title": "ToolActionInput"
+      },
+      "ToolApproval": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "server": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Server"
+          },
+          "action": {
+            "$ref": "#/components/schemas/ApprovalMode"
+          },
+          "reason": {
+            "type": "string",
+            "title": "Reason"
+          },
+          "read_only": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Read Only"
+          }
+        },
+        "type": "object",
+        "required": [
+          "name",
+          "server",
+          "action",
+          "reason"
+        ],
+        "title": "ToolApproval",
+        "description": "一个工具的审批方式与原因（设置页显示）。内置工具的 server 为 None。"
+      },
+      "ToolDecision": {
+        "properties": {
+          "type": {
+            "$ref": "#/components/schemas/DecisionType"
+          },
+          "args": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Args"
+          },
+          "message": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 2000,
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Message"
+          }
+        },
+        "type": "object",
+        "required": [
+          "type"
+        ],
+        "title": "ToolDecision",
+        "description": "对一个待审批调用的决定：同意、修改参数后执行（args）、拒绝。\n\n拒绝时带 message 即\"回复一句话\"：调用不执行，这句话转给智能体（D18）。"
+      },
+      "UsageBucket": {
+        "properties": {
+          "calls": {
+            "type": "integer",
+            "title": "Calls",
+            "default": 0
+          },
+          "input_tokens": {
+            "type": "integer",
+            "title": "Input Tokens",
+            "default": 0
+          },
+          "output_tokens": {
+            "type": "integer",
+            "title": "Output Tokens",
+            "default": 0
+          }
+        },
+        "type": "object",
+        "required": [
+          "calls",
+          "input_tokens",
+          "output_tokens"
+        ],
+        "title": "UsageBucket",
+        "description": "一组调用的合计：调用次数、输入、输出。"
+      },
+      "UsageRecord": {
+        "properties": {
+          "caller": {
+            "type": "string",
+            "title": "Caller"
+          },
+          "requested_model": {
+            "type": "string",
+            "title": "Requested Model"
+          },
+          "actual_model": {
+            "type": "string",
+            "title": "Actual Model"
+          },
+          "input_tokens": {
+            "type": "integer",
+            "title": "Input Tokens"
+          },
+          "output_tokens": {
+            "type": "integer",
+            "title": "Output Tokens"
+          },
+          "cache_read_tokens": {
+            "type": "integer",
+            "title": "Cache Read Tokens"
+          },
+          "cache_write_tokens": {
+            "type": "integer",
+            "title": "Cache Write Tokens"
+          },
+          "reasoning_tokens": {
+            "type": "integer",
+            "title": "Reasoning Tokens"
+          },
+          "duration_ms": {
+            "type": "integer",
+            "title": "Duration Ms"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "caller",
+          "requested_model",
+          "actual_model",
+          "input_tokens",
+          "output_tokens",
+          "cache_read_tokens",
+          "cache_write_tokens",
+          "reasoning_tokens",
+          "duration_ms",
+          "created_at"
+        ],
+        "title": "UsageRecord",
+        "description": "一次模型调用的明细。"
+      },
+      "UsageSummaryView": {
+        "properties": {
+          "since": {
+            "type": "string",
+            "format": "date",
+            "title": "Since"
+          },
+          "until": {
+            "type": "string",
+            "format": "date",
+            "title": "Until"
+          },
+          "total": {
+            "$ref": "#/components/schemas/UsageBucket"
+          },
+          "by_day": {
+            "items": {
+              "$ref": "#/components/schemas/DayUsage"
+            },
+            "type": "array",
+            "title": "By Day"
+          },
+          "by_model": {
+            "items": {
+              "$ref": "#/components/schemas/ModelUsageSummary"
+            },
+            "type": "array",
+            "title": "By Model"
+          },
+          "by_caller": {
+            "items": {
+              "$ref": "#/components/schemas/CallerUsage"
+            },
+            "type": "array",
+            "title": "By Caller"
+          },
+          "by_thread": {
+            "items": {
+              "$ref": "#/components/schemas/ThreadUsageView"
+            },
+            "type": "array",
+            "title": "By Thread"
+          },
+          "by_tool": {
+            "items": {
+              "$ref": "#/components/schemas/NamedCount"
+            },
+            "type": "array",
+            "title": "By Tool"
+          },
+          "by_skill": {
+            "items": {
+              "$ref": "#/components/schemas/NamedCount"
+            },
+            "type": "array",
+            "title": "By Skill"
+          }
+        },
+        "type": "object",
+        "required": [
+          "since",
+          "until",
+          "total",
+          "by_day",
+          "by_model",
+          "by_caller",
+          "by_thread",
+          "by_tool",
+          "by_skill"
+        ],
+        "title": "UsageSummaryView"
+      },
+      "UsageTotals": {
+        "properties": {
+          "calls": {
+            "type": "integer",
+            "title": "Calls",
+            "default": 0
+          },
+          "input_tokens": {
+            "type": "integer",
+            "title": "Input Tokens",
+            "default": 0
+          },
+          "output_tokens": {
+            "type": "integer",
+            "title": "Output Tokens",
+            "default": 0
+          }
+        },
+        "type": "object",
+        "required": [
+          "calls",
+          "input_tokens",
+          "output_tokens"
+        ],
+        "title": "UsageTotals",
+        "description": "一次运行的用量合计。"
+      },
+      "ValidationError": {
+        "properties": {
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "type": "array",
+            "title": "Location"
+          },
+          "msg": {
+            "type": "string",
+            "title": "Message"
+          },
+          "type": {
+            "type": "string",
+            "title": "Error Type"
+          },
+          "input": {
+            "title": "Input"
+          },
+          "ctx": {
+            "type": "object",
+            "title": "Context"
+          }
+        },
+        "type": "object",
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationError"
+      },
+      "WorkspaceFile": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "thread_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Thread Id"
+          },
+          "path": {
+            "type": "string",
+            "title": "Path"
+          },
+          "source": {
+            "$ref": "#/components/schemas/FileSource"
+          },
+          "media_type": {
+            "type": "string",
+            "title": "Media Type"
+          },
+          "size": {
+            "type": "integer",
+            "title": "Size"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Updated At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "thread_id",
+          "path",
+          "source",
+          "media_type",
+          "size",
+          "created_at",
+          "updated_at"
+        ],
+        "title": "WorkspaceFile"
+      },
+      "ApprovalAction": {
+        "description": "一个待审批的工具调用。call_id 与它的 tool.started 一致（前端据此标出\"等待审批\"）。",
+        "properties": {
+          "call_id": {
+            "title": "Call Id",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "args": {
+            "additionalProperties": true,
+            "title": "Args",
+            "type": "object"
+          },
+          "server": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Server"
+          },
+          "description": {
+            "title": "Description",
+            "type": "string"
+          },
+          "allowed": {
+            "items": {
+              "$ref": "#/components/schemas/DecisionType"
+            },
+            "title": "Allowed",
+            "type": "array"
+          }
+        },
+        "required": [
+          "call_id",
+          "name",
+          "args",
+          "server",
+          "description",
+          "allowed"
+        ],
+        "title": "ApprovalAction",
+        "type": "object"
+      },
+      "ApprovalRequest": {
+        "description": "一处暂停：待审批的工具调用（预算刹车已去掉，D23）。",
+        "properties": {
+          "interrupt_id": {
+            "title": "Interrupt Id",
+            "type": "string"
+          },
+          "agent_path": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Agent Path",
+            "type": "array"
+          },
+          "actions": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/ApprovalAction"
+            },
+            "title": "Actions",
+            "type": "array"
+          }
+        },
+        "required": [
+          "interrupt_id",
+          "agent_path",
+          "actions"
+        ],
+        "title": "ApprovalRequest",
+        "type": "object"
+      },
+      "ApprovalRequired": {
+        "description": "运行暂停，等用户决定（设计文档 10.5）。这一段运行到此结束，不发 run.finished。\n\ntools_version 是暂停时的工具与审批规则的指纹：恢复时对不上（改了规则、MCP 服务没连上），\n这次审批就作废——否则用户的决定可能被无视（如\"拒绝\"了的调用因为不再需要审批而照样执行）。",
+        "properties": {
+          "agent_path": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Agent Path",
+            "type": "array"
+          },
+          "type": {
+            "const": "approval.required",
+            "default": "approval.required",
+            "title": "Type",
+            "type": "string"
+          },
+          "requests": {
+            "items": {
+              "$ref": "#/components/schemas/ApprovalRequest"
+            },
+            "title": "Requests",
+            "type": "array"
+          },
+          "tools_version": {
+            "title": "Tools Version",
+            "type": "string"
+          }
+        },
+        "required": [
+          "agent_path",
+          "type",
+          "requests",
+          "tools_version"
+        ],
+        "title": "ApprovalRequired",
+        "type": "object"
+      },
+      "ApprovalResolved": {
+        "description": "用户做出了决定，运行接着往下跑（恢复后的第一个事件）。",
+        "properties": {
+          "agent_path": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Agent Path",
+            "type": "array"
+          },
+          "type": {
+            "const": "approval.resolved",
+            "default": "approval.resolved",
+            "title": "Type",
+            "type": "string"
+          },
+          "answers": {
+            "items": {
+              "$ref": "#/components/schemas/ApprovalAnswer"
+            },
+            "title": "Answers",
+            "type": "array"
+          }
+        },
+        "required": [
+          "agent_path",
+          "type",
+          "answers"
+        ],
+        "title": "ApprovalResolved",
+        "type": "object"
+      },
+      "ContextUsage": {
+        "description": "主智能体这次调用模型时上下文各部分的大小（设计 2026-10-23 4.7），在拿到最终请求时算。\n\n按真实分词器估算、再用该模型最近一次的实际用量校准；工具条据此显示\"上下文 N%\"与分段。",
+        "properties": {
+          "agent_path": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Agent Path",
+            "type": "array"
+          },
+          "type": {
+            "const": "context.usage",
+            "default": "context.usage",
+            "title": "Type",
+            "type": "string"
+          },
+          "system": {
+            "title": "System",
+            "type": "integer"
+          },
+          "profile": {
+            "title": "Profile",
+            "type": "integer"
+          },
+          "tools": {
+            "title": "Tools",
+            "type": "integer"
+          },
+          "related": {
+            "title": "Related",
+            "type": "integer"
+          },
+          "history": {
+            "title": "History",
+            "type": "integer"
+          },
+          "total": {
+            "title": "Total",
+            "type": "integer"
+          },
+          "max_input_tokens": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max Input Tokens"
+          }
+        },
+        "required": [
+          "agent_path",
+          "type",
+          "system",
+          "profile",
+          "tools",
+          "related",
+          "history",
+          "total",
+          "max_input_tokens"
+        ],
+        "title": "ContextUsage",
+        "type": "object"
+      },
+      "ErrorKind": {
+        "enum": [
+          "quota",
+          "rate_limit",
+          "stalled",
+          "gateway",
+          "context_overflow",
+          "interrupted",
+          "other"
+        ],
+        "type": "string"
+      },
+      "FileCreated": {
+        "description": "outputs/ 下新增或改动了一个文件（产物，设计文档 9.3）。\n\nfile_id 由 backend 登记后填入（下载地址用它）；智能体发出时为空。",
+        "properties": {
+          "agent_path": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Agent Path",
+            "type": "array"
+          },
+          "type": {
+            "const": "file.created",
+            "default": "file.created",
+            "title": "Type",
+            "type": "string"
+          },
+          "path": {
+            "title": "Path",
+            "type": "string"
+          },
+          "size": {
+            "title": "Size",
+            "type": "integer"
+          },
+          "media_type": {
+            "title": "Media Type",
+            "type": "string"
+          },
+          "file_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "File Id"
+          }
+        },
+        "required": [
+          "agent_path",
+          "type",
+          "path",
+          "size",
+          "media_type",
+          "file_id"
+        ],
+        "title": "FileCreated",
+        "type": "object"
+      },
+      "InterruptedUsage": {
+        "description": "被中断的模型调用的估算用量（中断后网关不返回用量）：只用于显示，不计入用量表与合计。",
+        "properties": {
+          "input_tokens": {
+            "title": "Input Tokens",
+            "type": "integer"
+          },
+          "output_tokens": {
+            "title": "Output Tokens",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "input_tokens",
+          "output_tokens"
+        ],
+        "title": "InterruptedUsage",
+        "type": "object"
+      },
+      "MemorySaved": {
+        "description": "智能体用 remember 工具记下了一条记忆（设计文档 8.2），前端提示\"已记住：xxx\"。",
+        "properties": {
+          "agent_path": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Agent Path",
+            "type": "array"
+          },
+          "type": {
+            "const": "memory.saved",
+            "default": "memory.saved",
+            "title": "Type",
+            "type": "string"
+          },
+          "item_id": {
+            "title": "Item Id",
+            "type": "string"
+          },
+          "content": {
+            "title": "Content",
+            "type": "string"
+          },
+          "tags": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Tags",
+            "type": "array"
+          },
+          "pinned": {
+            "title": "Pinned",
+            "type": "boolean"
+          },
+          "suspicious": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Suspicious"
+          }
+        },
+        "required": [
+          "agent_path",
+          "type",
+          "item_id",
+          "content",
+          "tags",
+          "pinned",
+          "suspicious"
+        ],
+        "title": "MemorySaved",
+        "type": "object"
+      },
+      "MessageDelta": {
+        "properties": {
+          "agent_path": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Agent Path",
+            "type": "array"
+          },
+          "type": {
+            "const": "message.delta",
+            "default": "message.delta",
+            "title": "Type",
+            "type": "string"
+          },
+          "message_id": {
+            "title": "Message Id",
+            "type": "string"
+          },
+          "text": {
+            "title": "Text",
+            "type": "string"
+          }
+        },
+        "required": [
+          "agent_path",
+          "type",
+          "message_id",
+          "text"
+        ],
+        "title": "MessageDelta",
+        "type": "object"
+      },
+      "RunFinished": {
+        "properties": {
+          "agent_path": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Agent Path",
+            "type": "array"
+          },
+          "type": {
+            "const": "run.finished",
+            "default": "run.finished",
+            "title": "Type",
+            "type": "string"
+          },
+          "status": {
+            "enum": [
+              "completed",
+              "failed",
+              "cancelled"
+            ],
+            "title": "Status",
+            "type": "string"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Error"
+          },
+          "error_kind": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ErrorKind"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
+          "retryable": {
+            "default": false,
+            "title": "Retryable",
+            "type": "boolean"
+          },
+          "usage": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/UsageTotals"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
+          "interrupted_usage": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/InterruptedUsage"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
+          "undelivered": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Undelivered",
+            "type": "array"
+          },
+          "next_run_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Next Run Id"
+          }
+        },
+        "required": [
+          "agent_path",
+          "type",
+          "status",
+          "error",
+          "error_kind",
+          "retryable",
+          "usage",
+          "interrupted_usage",
+          "undelivered",
+          "next_run_id"
+        ],
+        "title": "RunFinished",
+        "type": "object"
+      },
+      "RunStarted": {
+        "properties": {
+          "agent_path": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Agent Path",
+            "type": "array"
+          },
+          "type": {
+            "const": "run.started",
+            "default": "run.started",
+            "title": "Type",
+            "type": "string"
+          },
+          "model": {
+            "title": "Model",
+            "type": "string"
+          }
+        },
+        "required": [
+          "agent_path",
+          "type",
+          "model"
+        ],
+        "title": "RunStarted",
+        "type": "object"
+      },
+      "SubagentFinished": {
+        "properties": {
+          "agent_path": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Agent Path",
+            "type": "array"
+          },
+          "type": {
+            "const": "subagent.finished",
+            "default": "subagent.finished",
+            "title": "Type",
+            "type": "string"
+          },
+          "call_id": {
+            "title": "Call Id",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "status": {
+            "enum": [
+              "success",
+              "error"
+            ],
+            "title": "Status",
+            "type": "string"
+          },
+          "output": {
+            "title": "Output",
+            "type": "string"
+          }
+        },
+        "required": [
+          "agent_path",
+          "type",
+          "call_id",
+          "name",
+          "status",
+          "output"
+        ],
+        "title": "SubagentFinished",
+        "type": "object"
+      },
+      "SubagentStarted": {
+        "description": "派出子智能体（deepagents 的 task 工具调用）。call_id 即其内部事件 agent_path 的第二段。",
+        "properties": {
+          "agent_path": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Agent Path",
+            "type": "array"
+          },
+          "type": {
+            "const": "subagent.started",
+            "default": "subagent.started",
+            "title": "Type",
+            "type": "string"
+          },
+          "call_id": {
+            "title": "Call Id",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "description": {
+            "title": "Description",
+            "type": "string"
+          }
+        },
+        "required": [
+          "agent_path",
+          "type",
+          "call_id",
+          "name",
+          "description"
+        ],
+        "title": "SubagentStarted",
+        "type": "object"
+      },
+      "ThinkingDelta": {
+        "description": "深度思考过程的逐字片段（前端默认折叠显示）。",
+        "properties": {
+          "agent_path": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Agent Path",
+            "type": "array"
+          },
+          "type": {
+            "const": "thinking.delta",
+            "default": "thinking.delta",
+            "title": "Type",
+            "type": "string"
+          },
+          "message_id": {
+            "title": "Message Id",
+            "type": "string"
+          },
+          "text": {
+            "title": "Text",
+            "type": "string"
+          }
+        },
+        "required": [
+          "agent_path",
+          "type",
+          "message_id",
+          "text"
+        ],
+        "title": "ThinkingDelta",
+        "type": "object"
+      },
+      "ThinkingFinished": {
+        "description": "思考结束：第一段文字或第一个工具调用到来，或这次调用结束时。",
+        "properties": {
+          "agent_path": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Agent Path",
+            "type": "array"
+          },
+          "type": {
+            "const": "thinking.finished",
+            "default": "thinking.finished",
+            "title": "Type",
+            "type": "string"
+          },
+          "message_id": {
+            "title": "Message Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "agent_path",
+          "type",
+          "message_id"
+        ],
+        "title": "ThinkingFinished",
+        "type": "object"
+      },
+      "ThinkingStarted": {
+        "description": "这次调用开始思考（第一段思考到来时，设计 2026-10-23 4.8）：前端用它的时间算思考用时。",
+        "properties": {
+          "agent_path": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Agent Path",
+            "type": "array"
+          },
+          "type": {
+            "const": "thinking.started",
+            "default": "thinking.started",
+            "title": "Type",
+            "type": "string"
+          },
+          "message_id": {
+            "title": "Message Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "agent_path",
+          "type",
+          "message_id"
+        ],
+        "title": "ThinkingStarted",
+        "type": "object"
+      },
+      "TodoItem": {
+        "properties": {
+          "content": {
+            "title": "Content",
+            "type": "string"
+          },
+          "status": {
+            "enum": [
+              "pending",
+              "in_progress",
+              "completed"
+            ],
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "content",
+          "status"
+        ],
+        "title": "TodoItem",
+        "type": "object"
+      },
+      "TodosUpdated": {
+        "description": "待办清单变化，带完整清单。",
+        "properties": {
+          "agent_path": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Agent Path",
+            "type": "array"
+          },
+          "type": {
+            "const": "todos.updated",
+            "default": "todos.updated",
+            "title": "Type",
+            "type": "string"
+          },
+          "todos": {
+            "items": {
+              "$ref": "#/components/schemas/TodoItem"
+            },
+            "title": "Todos",
+            "type": "array"
+          }
+        },
+        "required": [
+          "agent_path",
+          "type",
+          "todos"
+        ],
+        "title": "TodosUpdated",
+        "type": "object"
+      },
+      "ToolFinished": {
+        "properties": {
+          "agent_path": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Agent Path",
+            "type": "array"
+          },
+          "type": {
+            "const": "tool.finished",
+            "default": "tool.finished",
+            "title": "Type",
+            "type": "string"
+          },
+          "call_id": {
+            "title": "Call Id",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "status": {
+            "enum": [
+              "success",
+              "error"
+            ],
+            "title": "Status",
+            "type": "string"
+          },
+          "output": {
+            "title": "Output",
+            "type": "string"
+          },
+          "exit_code": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Exit Code"
+          },
+          "stderr": {
+            "default": "",
+            "title": "Stderr",
+            "type": "string"
+          }
+        },
+        "required": [
+          "agent_path",
+          "type",
+          "call_id",
+          "name",
+          "status",
+          "output",
+          "exit_code",
+          "stderr"
+        ],
+        "title": "ToolFinished",
+        "type": "object"
+      },
+      "ToolRunning": {
+        "description": "工具真正开始执行（审批之后，设计 2026-10-23 5.7）：前端从这时算用时，等过审批的也有用时。",
+        "properties": {
+          "agent_path": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Agent Path",
+            "type": "array"
+          },
+          "type": {
+            "const": "tool.running",
+            "default": "tool.running",
+            "title": "Type",
+            "type": "string"
+          },
+          "call_id": {
+            "title": "Call Id",
+            "type": "string"
+          },
+          "name": {
+            "default": "",
+            "title": "Name",
+            "type": "string"
+          },
+          "skill": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Skill"
+          }
+        },
+        "required": [
+          "agent_path",
+          "type",
+          "call_id",
+          "name",
+          "skill"
+        ],
+        "title": "ToolRunning",
+        "type": "object"
+      },
+      "ToolStarted": {
+        "properties": {
+          "agent_path": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Agent Path",
+            "type": "array"
+          },
+          "type": {
+            "const": "tool.started",
+            "default": "tool.started",
+            "title": "Type",
+            "type": "string"
+          },
+          "call_id": {
+            "title": "Call Id",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "args": {
+            "additionalProperties": true,
+            "title": "Args",
+            "type": "object"
+          }
+        },
+        "required": [
+          "agent_path",
+          "type",
+          "call_id",
+          "name",
+          "args"
+        ],
+        "title": "ToolStarted",
+        "type": "object"
+      },
+      "UsageReported": {
+        "description": "一次模型调用的用量（设计文档 7.7）。只算 token，不算费用（设计 2026-10-19 4.11）：\ninput_tokens 是实际发给模型的全部输入（含命中缓存的部分），缓存读写与思考另记明细。",
+        "properties": {
+          "agent_path": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Agent Path",
+            "type": "array"
+          },
+          "type": {
+            "const": "usage",
+            "default": "usage",
+            "title": "Type",
+            "type": "string"
+          },
+          "caller": {
+            "title": "Caller",
+            "type": "string"
+          },
+          "requested_model": {
+            "title": "Requested Model",
+            "type": "string"
+          },
+          "actual_model": {
+            "title": "Actual Model",
+            "type": "string"
+          },
+          "input_tokens": {
+            "title": "Input Tokens",
+            "type": "integer"
+          },
+          "output_tokens": {
+            "title": "Output Tokens",
+            "type": "integer"
+          },
+          "cache_read_tokens": {
+            "default": 0,
+            "title": "Cache Read Tokens",
+            "type": "integer"
+          },
+          "cache_write_tokens": {
+            "default": 0,
+            "title": "Cache Write Tokens",
+            "type": "integer"
+          },
+          "reasoning_tokens": {
+            "default": 0,
+            "title": "Reasoning Tokens",
+            "type": "integer"
+          },
+          "duration_ms": {
+            "default": 0,
+            "title": "Duration Ms",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "agent_path",
+          "type",
+          "caller",
+          "requested_model",
+          "actual_model",
+          "input_tokens",
+          "output_tokens",
+          "cache_read_tokens",
+          "cache_write_tokens",
+          "reasoning_tokens",
+          "duration_ms"
+        ],
+        "title": "UsageReported",
+        "type": "object"
+      },
+      "UserInterjected": {
+        "description": "运行中的插话送达了（设计 2026-10-23 6.3）：界面在这一轮里显示成一条用户消息。",
+        "properties": {
+          "agent_path": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Agent Path",
+            "type": "array"
+          },
+          "type": {
+            "const": "user.interjected",
+            "default": "user.interjected",
+            "title": "Type",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "text": {
+            "title": "Text",
+            "type": "string"
+          }
+        },
+        "required": [
+          "agent_path",
+          "type",
+          "id",
+          "text"
+        ],
+        "title": "UserInterjected",
+        "type": "object"
+      },
+      "AgentEvent": {
+        "discriminator": {
+          "mapping": {
+            "approval.required": "#/components/schemas/ApprovalRequired",
+            "approval.resolved": "#/components/schemas/ApprovalResolved",
+            "context.usage": "#/components/schemas/ContextUsage",
+            "file.created": "#/components/schemas/FileCreated",
+            "memory.saved": "#/components/schemas/MemorySaved",
+            "message.delta": "#/components/schemas/MessageDelta",
+            "run.finished": "#/components/schemas/RunFinished",
+            "run.started": "#/components/schemas/RunStarted",
+            "subagent.finished": "#/components/schemas/SubagentFinished",
+            "subagent.started": "#/components/schemas/SubagentStarted",
+            "thinking.delta": "#/components/schemas/ThinkingDelta",
+            "thinking.finished": "#/components/schemas/ThinkingFinished",
+            "thinking.started": "#/components/schemas/ThinkingStarted",
+            "todos.updated": "#/components/schemas/TodosUpdated",
+            "tool.finished": "#/components/schemas/ToolFinished",
+            "tool.running": "#/components/schemas/ToolRunning",
+            "tool.started": "#/components/schemas/ToolStarted",
+            "usage": "#/components/schemas/UsageReported",
+            "user.interjected": "#/components/schemas/UserInterjected"
+          },
+          "propertyName": "type"
+        },
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/RunStarted"
+          },
+          {
+            "$ref": "#/components/schemas/MessageDelta"
+          },
+          {
+            "$ref": "#/components/schemas/ThinkingStarted"
+          },
+          {
+            "$ref": "#/components/schemas/ThinkingDelta"
+          },
+          {
+            "$ref": "#/components/schemas/ThinkingFinished"
+          },
+          {
+            "$ref": "#/components/schemas/UserInterjected"
+          },
+          {
+            "$ref": "#/components/schemas/ToolStarted"
+          },
+          {
+            "$ref": "#/components/schemas/ToolRunning"
+          },
+          {
+            "$ref": "#/components/schemas/ToolFinished"
+          },
+          {
+            "$ref": "#/components/schemas/SubagentStarted"
+          },
+          {
+            "$ref": "#/components/schemas/SubagentFinished"
+          },
+          {
+            "$ref": "#/components/schemas/TodosUpdated"
+          },
+          {
+            "$ref": "#/components/schemas/UsageReported"
+          },
+          {
+            "$ref": "#/components/schemas/ContextUsage"
+          },
+          {
+            "$ref": "#/components/schemas/FileCreated"
+          },
+          {
+            "$ref": "#/components/schemas/MemorySaved"
+          },
+          {
+            "$ref": "#/components/schemas/ApprovalRequired"
+          },
+          {
+            "$ref": "#/components/schemas/ApprovalResolved"
+          },
+          {
+            "$ref": "#/components/schemas/RunFinished"
+          }
+        ]
+      }
+    }
+  }
+}

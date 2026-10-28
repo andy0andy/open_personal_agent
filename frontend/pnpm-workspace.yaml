@@ -1,0 +1,5 @@
+# pnpm 的设置（pnpm 11 起不再读 .npmrc 里的 save-exact，设计 2026-10-23 7.5）
+# 依赖冷却期：新发布不满 3 天（4320 分钟）的版本不装
+minimumReleaseAge: 4320
+# 加依赖时写精确版本（编码规范：直接依赖一律精确版本）
+saveExact: true

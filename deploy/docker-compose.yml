@@ -1,0 +1,156 @@
+# 所有第三方服务与本项目镜像统一在此定义（D13）。镜像版本全部固定。
+# 当前网络访问不了 Docker Hub：Docker Hub 上的镜像经 Google 官方镜像站 mirror.gcr.io 拉取；
+# 若该镜像站也不可用，把 mirror.gcr.io 换成 docker.1ms.run 再试。
+name: open-personal-agent
+
+services:
+  postgres:
+    image: mirror.gcr.io/pgvector/pgvector:0.8.7-pg18-trixie
+    environment:
+      POSTGRES_USER: agent
+      POSTGRES_PASSWORD: agent
+      POSTGRES_DB: agent
+    volumes:
+      - pgdata:/var/lib/postgresql
+      - ./postgres/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    ports: ["127.0.0.1:5432:5432"]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U agent -d agent"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  litellm:
+    image: ghcr.io/berriai/litellm:v1.105.0
+    command: ["--config", "/app/config.yaml", "--port", "4000"]
+    # 没有 .env 时也能解析（构建、打包用不到它）；运行时缺密钥由下面的 ${…:?} 报出
+    env_file:
+      - path: ../.env
+        required: false
+    environment:
+      DATABASE_URL: postgresql://agent:agent@postgres:5432/litellm
+      LITELLM_LOCAL_MODEL_COST_MAP: "True"
+      # 模型页新增的模型存进网关数据库，立即生效、不用重启（D21）；config/models.yaml 里的照旧只读
+      STORE_MODEL_IN_DB: "True"
+      # 网关用它加密存进数据库的模型参数：设了以后不能改，恢复备份时要用同一个值（D21）
+      LITELLM_SALT_KEY: ${LITELLM_SALT_KEY:?请在 .env 中设置 LITELLM_SALT_KEY（D21：设了以后不能改）}
+    volumes:
+      - ../config/models.yaml:/app/config.yaml:ro
+    ports: ["127.0.0.1:4000:4000"]
+    depends_on:
+      postgres: { condition: service_healthy }
+    healthcheck:
+      # 镜像内没有 wget / curl，用自带的 python3 检查
+      test: ["CMD", "python3", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:4000/health/liveliness')"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+      start_period: 30s
+
+  ollama: # 只做向量化（D15），不跑对话模型
+    image: mirror.gcr.io/ollama/ollama:0.40.3
+    volumes:
+      - ollama-models:/root/.ollama
+    healthcheck:
+      test: ["CMD", "ollama", "list"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  ollama-init: # 一次性任务：向量模型不存在时才下载（约 640MB；已存在时不联网、立即结束）
+    image: mirror.gcr.io/ollama/ollama:0.40.3
+    entrypoint: ["sh", "-c"]
+    # 下不下来（没联网）也正常结束：后端照常起来、能对话，知识库等模型下好再用（make doctor 会报 ✗）；
+    # 不然后端依赖它跑成功，make restart 会把正在用的后端停掉起不来
+    command: ["ollama show qwen3-embedding:0.6b >/dev/null 2>&1 || ollama pull qwen3-embedding:0.6b || { echo '向量模型没下载成功：知识库暂不可用，联网后 make up 会重试'; true; }"]
+    environment:
+      OLLAMA_HOST: http://ollama:11434
+    depends_on:
+      ollama: { condition: service_healthy }
+    restart: "no"
+
+  backend:
+    # 镜像模式（设计 2026-10-28）：代码与打包好的前端都在镜像里，不挂源码、不自动重载；
+    # 改了代码要重新构建镜像（make build，或在构建电脑上构建后用 make bundle 打包、拿来加载）。
+    # 要并存多个版本时在 .env 里设 BACKEND_IMAGE
+    image: ${BACKEND_IMAGE:-open-personal-agent-backend:latest}
+    build:
+      context: ..
+      dockerfile: deploy/backend.Dockerfile
+    # 智能体执行的命令也在这个容器里跑（D20）：1 号进程用 init，停止或超时时被杀掉的孙进程
+    # 会托管给 1 号进程，uvicorn 不回收它们，僵尸进程会一直累积
+    init: true
+    # 启动命令用镜像自带的（deploy/backend.Dockerfile 的 CMD）：先迁移数据库，再起 uvicorn；
+    # 停止时最多等 3 秒让连接关闭，之后中断运行并收尾
+    # 整份读入 .env（D22）：设置页的设置可以用同名环境变量覆盖（如 AGENT__DEFAULT_MODEL），
+    # MCP 服务要的密钥也在 .env 里设置即可。改了 .env 要 make restart。
+    # 智能体执行的命令只拿白名单里的变量（D20）；但本地 MCP 服务以 root 跑在这个容器里，
+    # 能读到后端进程的全部环境变量，所以 .env 里给 MCP 用的密钥所有本地 MCP 服务都看得到
+    # 没有 .env 时也能解析（构建、打包用不到它）；运行时缺密钥由下面的 ${…:?} 报出
+    env_file:
+      - path: ../.env
+        required: false
+    environment:
+      # 这几项按容器内的地址覆盖 .env 里给宿主机用的值
+      DATABASE_URL: postgresql://agent:agent@postgres:5432/agent
+      LITELLM_BASE_URL: http://litellm:4000
+      LITELLM_MASTER_KEY: ${LITELLM_MASTER_KEY:?请在 .env 中设置 LITELLM_MASTER_KEY}
+      LITELLM_LOCAL_MODEL_COST_MAP: "True"
+      LANGGRAPH_STRICT_MSGPACK: "true"
+      WORKDATA_DIR: /app/.workdata
+      # npx 下载的 MCP 服务包放进数据卷：重建容器后不用重新下载
+      npm_config_cache: /app/.workdata/cache/npm
+      npm_config_update_notifier: "false"
+      # 跟着宿主机的时区（Makefile 读 /etc/localtime 导出 HOST_TZ，取不到时是 UTC）：备份的文件名、
+      # 命令里的 date 都是本地时间。.env 里只写 HOST_TZ、不写 TZ：网关也整份读 .env，写 TZ 会一起改
+      TZ: ${HOST_TZ:-UTC}
+      # 只有网关要用的密钥在后端置空，不让本地 MCP 服务读到（终审 I2；deploy/tests/test_compose.py）。
+      # MCP 服务要用同一个厂商的密钥时，在 .env 里另起一个变量名
+      UPSTREAM_GATEWAY_URL: ""
+      UPSTREAM_GATEWAY_KEY: ""
+      LITELLM_SALT_KEY: ""
+      ANTHROPIC_API_KEY: ""
+      OPENAI_API_KEY: ""
+      GEMINI_API_KEY: ""
+      DEEPSEEK_API_KEY: ""
+      DASHSCOPE_API_KEY: ""
+    # 代码与默认配置在镜像里，属于 root：智能体以 uid 1000 执行的命令改不了（D20）
+    volumes:
+      - ../.workdata:/app/.workdata
+      # 共享文件夹：MCP 的 files 服务读写这里（config/mcp_servers.yaml）；.env 的 SHARED_DIR 可换成别的文件夹
+      - ${SHARED_DIR:-../.workdata/shared}:/shared
+      # 后端用不到备份（备份、恢复都在宿主机上做）：挂一个空的只读目录遮住，命令读不到（设计 2026-10-23 5.1）。
+      # 不用内存盘：podman 的 tmpfs 默认会把底下的备份复制进去
+      - ./empty-dir:/app/.workdata/backups:ro
+    # 只绑本机：本机安全防护已删除（D23），不能让局域网里的设备访问
+    ports: ["127.0.0.1:8000:8000"]
+    depends_on:
+      postgres: { condition: service_healthy }
+      litellm: { condition: service_healthy }
+      # 不经 make 也先把向量模型下好；已下载时它立即结束
+      ollama-init: { condition: service_completed_successfully }
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/api/health')"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+      start_period: 20s
+
+  postgres-test: # 自动化测试专用：数据放内存盘，测完即弃
+    profiles: [test]
+    image: mirror.gcr.io/pgvector/pgvector:0.8.7-pg18-trixie
+    environment:
+      POSTGRES_USER: agent
+      POSTGRES_PASSWORD: agent
+      POSTGRES_DB: agent_test
+    tmpfs: [/var/lib/postgresql]
+    ports: ["127.0.0.1:55432:5432"]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U agent -d agent_test"]
+      interval: 2s
+      timeout: 5s
+      retries: 30
+
+volumes:
+  pgdata:
+  ollama-models:

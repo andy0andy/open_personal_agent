@@ -1,0 +1,7 @@
+dist
+pnpm-lock.yaml
+# make types 自动生成，不手改
+src/api/generated
+# make e2e 的运行结果
+test-results
+playwright-report

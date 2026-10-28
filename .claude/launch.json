@@ -1,0 +1,24 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "web",
+      "runtimeExecutable": "make",
+      "runtimeArgs": [
+        "web"
+      ],
+      "port": 5173
+    },
+    {
+      "name": "e2e-backend",
+      "runtimeExecutable": "uv",
+      "runtimeArgs": [
+        "run",
+        "python",
+        "-m",
+        "backend.tests.e2e_server"
+      ],
+      "port": 8100
+    }
+  ]
+}

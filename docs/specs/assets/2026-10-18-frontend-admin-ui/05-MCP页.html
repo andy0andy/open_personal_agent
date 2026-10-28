@@ -1,0 +1,359 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Superpowers Brainstorming</title>
+  <style>
+    /*
+     * BRAINSTORM COMPANION FRAME TEMPLATE
+     *
+     * This template provides a consistent frame with:
+     * - OS-aware light/dark theming
+     * - Header branding and connection status
+     * - Scrollable main content area
+     * - CSS helpers for common UI patterns
+     *
+     * Content is injected via placeholder comment in #frame-content.
+     */
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { height: 100%; overflow: hidden; }
+
+    /* ===== THEME VARIABLES ===== */
+    :root {
+      --bg-primary: #f5f5f7;
+      --bg-secondary: #ffffff;
+      --bg-tertiary: #e5e5e7;
+      --border: #d1d1d6;
+      --text-primary: #1d1d1f;
+      --text-secondary: #86868b;
+      --text-tertiary: #aeaeb2;
+      --accent: #0071e3;
+      --accent-hover: #0077ed;
+      --success: #34c759;
+      --warning: #ff9f0a;
+      --error: #ff3b30;
+      --selected-bg: #e8f4fd;
+      --selected-border: #0071e3;
+    }
+
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg-primary: #1d1d1f;
+        --bg-secondary: #2d2d2f;
+        --bg-tertiary: #3d3d3f;
+        --border: #424245;
+        --text-primary: #f5f5f7;
+        --text-secondary: #86868b;
+        --text-tertiary: #636366;
+        --accent: #0a84ff;
+        --accent-hover: #409cff;
+        --selected-bg: rgba(10, 132, 255, 0.15);
+        --selected-border: #0a84ff;
+      }
+    }
+
+    body {
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+      background: var(--bg-primary);
+      color: var(--text-primary);
+      display: flex;
+      flex-direction: column;
+      line-height: 1.5;
+    }
+
+    /* ===== FRAME STRUCTURE ===== */
+    .brand { display: flex; align-items: center; min-width: 0; overflow: hidden; color: var(--text-secondary); line-height: 1; }
+    .brand a { color: inherit; text-decoration: none; display: flex; align-items: center; gap: 0.5rem; min-width: 0; max-width: 100%; line-height: 1; }
+    .brand-copy { display: block; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; line-height: 1; transform: translateY(-1px); }
+    .brand-logo { display: block; height: 1em; width: auto; max-width: 180px; flex-shrink: 0; filter: invert(1); }
+    @media (prefers-color-scheme: dark) {
+      .brand-logo { filter: none; }
+    }
+    .status { font-size: 0.7rem; color: var(--status-color, var(--success)); display: flex; align-items: center; gap: 0.4rem; justify-self: end; white-space: nowrap; line-height: 1; }
+    .status::before { content: ''; width: 6px; height: 6px; background: var(--status-color, var(--success)); border-radius: 50%; }
+
+    .main { flex: 1; overflow-y: auto; }
+    #frame-content { padding: 2rem; min-height: 100%; }
+
+    .header {
+      background: var(--bg-secondary);
+      border-bottom: 1px solid var(--border);
+      padding: 0.5rem 1.5rem;
+      flex-shrink: 0;
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      align-items: center;
+      gap: 1rem;
+      min-height: 42px;
+    }
+    .header .brand { justify-self: start; width: 100%; font-size: 0.75rem; line-height: 1; }
+    .header .status { grid-column: 2; line-height: 1; }
+    .header span {
+      font-size: 0.75rem;
+      color: var(--text-secondary);
+    }
+    .header .selected-text {
+      color: var(--accent);
+      font-weight: 500;
+    }
+
+    /* ===== TYPOGRAPHY ===== */
+    h2 { font-size: 1.5rem; font-weight: 600; margin-bottom: 0.5rem; }
+    h3 { font-size: 1.1rem; font-weight: 600; margin-bottom: 0.25rem; }
+    .subtitle { color: var(--text-secondary); margin-bottom: 1.5rem; }
+    .section { margin-bottom: 2rem; }
+    .label { font-size: 0.7rem; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.5rem; }
+
+    /* ===== OPTIONS (for A/B/C choices) ===== */
+    .options { display: flex; flex-direction: column; gap: 0.75rem; }
+    .option {
+      background: var(--bg-secondary);
+      border: 2px solid var(--border);
+      border-radius: 12px;
+      padding: 1rem 1.25rem;
+      cursor: pointer;
+      transition: all 0.15s ease;
+      display: flex;
+      align-items: flex-start;
+      gap: 1rem;
+    }
+    .option:hover { border-color: var(--accent); }
+    .option.selected { background: var(--selected-bg); border-color: var(--selected-border); }
+    .option .letter {
+      background: var(--bg-tertiary);
+      color: var(--text-secondary);
+      width: 1.75rem; height: 1.75rem;
+      border-radius: 6px;
+      display: flex; align-items: center; justify-content: center;
+      font-weight: 600; font-size: 0.85rem; flex-shrink: 0;
+    }
+    .option.selected .letter { background: var(--accent); color: white; }
+    .option .content { flex: 1; }
+    .option .content h3 { font-size: 0.95rem; margin-bottom: 0.15rem; }
+    .option .content p { color: var(--text-secondary); font-size: 0.85rem; margin: 0; }
+
+    /* ===== CARDS (for showing designs/mockups) ===== */
+    .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1rem; }
+    .card {
+      background: var(--bg-secondary);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      overflow: hidden;
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+    .card:hover { border-color: var(--accent); transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
+    .card.selected { border-color: var(--selected-border); border-width: 2px; }
+    .card-image { background: var(--bg-tertiary); aspect-ratio: 16/10; display: flex; align-items: center; justify-content: center; }
+    .card-body { padding: 1rem; }
+    .card-body h3 { margin-bottom: 0.25rem; }
+    .card-body p { color: var(--text-secondary); font-size: 0.85rem; }
+
+    /* ===== MOCKUP CONTAINER ===== */
+    .mockup {
+      background: var(--bg-secondary);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      overflow: hidden;
+      margin-bottom: 1.5rem;
+    }
+    .mockup-header {
+      background: var(--bg-tertiary);
+      padding: 0.5rem 1rem;
+      font-size: 0.75rem;
+      color: var(--text-secondary);
+      border-bottom: 1px solid var(--border);
+    }
+    .mockup-body { padding: 1.5rem; }
+
+    /* ===== SPLIT VIEW (side-by-side comparison) ===== */
+    .split { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; }
+    @media (max-width: 700px) { .split { grid-template-columns: 1fr; } }
+
+    /* ===== PROS/CONS ===== */
+    .pros-cons { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin: 1rem 0; }
+    .pros, .cons { background: var(--bg-secondary); border-radius: 8px; padding: 1rem; }
+    .pros h4 { color: var(--success); font-size: 0.85rem; margin-bottom: 0.5rem; }
+    .cons h4 { color: var(--error); font-size: 0.85rem; margin-bottom: 0.5rem; }
+    .pros ul, .cons ul { margin-left: 1.25rem; font-size: 0.85rem; color: var(--text-secondary); }
+    .pros li, .cons li { margin-bottom: 0.25rem; }
+
+    /* ===== PLACEHOLDER (for mockup areas) ===== */
+    .placeholder {
+      background: var(--bg-tertiary);
+      border: 2px dashed var(--border);
+      border-radius: 8px;
+      padding: 2rem;
+      text-align: center;
+      color: var(--text-tertiary);
+    }
+
+    /* ===== INLINE MOCKUP ELEMENTS ===== */
+    .mock-nav { background: var(--accent); color: white; padding: 0.75rem 1rem; display: flex; gap: 1.5rem; font-size: 0.9rem; }
+    .mock-sidebar { background: var(--bg-tertiary); padding: 1rem; min-width: 180px; }
+    .mock-content { padding: 1.5rem; flex: 1; }
+    .mock-button { background: var(--accent); color: white; border: none; padding: 0.5rem 1rem; border-radius: 6px; font-size: 0.85rem; }
+    .mock-input { background: var(--bg-primary); border: 1px solid var(--border); border-radius: 6px; padding: 0.5rem; width: 100%; }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <!-- BRANDING -->
+    <div class="status">Connecting…</div>
+  </div>
+
+  <div class="main">
+    <div id="frame-content">
+      <style>
+  .opa{--bg:#041c1c;--fg:#ffe6cb;--ln:#1d3a39;--mut:#ffe6cb99;--red:#ff7a6b;background:var(--bg);color:var(--fg);font:12px/1.45 ui-monospace,"SF Mono",monospace;border:1px solid var(--ln);border-radius:6px;display:flex;overflow:hidden;position:relative}
+  .opa .side{width:120px;border-right:1px solid var(--ln);padding:8px 0;flex-shrink:0}
+  .opa .brand{padding:0 10px 8px;font-weight:700;letter-spacing:.08em;border-bottom:1px solid var(--ln);margin-bottom:6px}
+  .opa .it{padding:4px 10px;letter-spacing:.06em;opacity:.7}
+  .opa .it.on{background:#ffe6cb1f;opacity:1;border-left:2px solid var(--fg)}
+  .opa .gap{height:10px}
+  .opa .main{flex:1;min-width:0;display:flex;flex-direction:column}
+  .opa .top{display:flex;align-items:center;gap:8px;padding:10px 14px;border-bottom:1px solid var(--ln)}
+  .opa .top h4{margin:0;font-size:14px;letter-spacing:.04em}
+  .opa .btn{border:1px solid var(--fg);padding:3px 8px;font-size:10px;letter-spacing:.1em;text-transform:uppercase;white-space:nowrap}
+  .opa .btn.pri{background:var(--fg);color:var(--bg)}
+  .opa .btn.danger{border-color:var(--red);color:var(--red)}
+  .opa .btn.ghost{border-color:transparent;color:var(--mut)}
+  .opa .search{border:1px solid var(--ln);padding:3px 8px;color:#ffe6cb55;width:160px}
+  .opa .body{padding:12px 14px;display:flex;flex-direction:column;gap:14px}
+  .opa .sh{font-weight:700;letter-spacing:.1em;display:flex;align-items:center;gap:8px}
+  .opa .sh small{font-weight:400;letter-spacing:0;color:var(--mut)}
+  .opa .box{border:1px solid var(--ln)}
+  .opa .row{display:flex;align-items:center;gap:10px;padding:9px 10px;border-bottom:1px solid var(--ln)}
+  .opa .row:last-child{border-bottom:0}
+  .opa .nm{font-weight:700}
+  .opa .sub{color:var(--mut);font-size:11px}
+  .opa .tag{border:1px solid #ffe6cb55;padding:0 5px;font-size:10px;color:var(--mut);white-space:nowrap}
+  .opa .tag.g{border-color:#3f7f4f;color:#8fd19b;background:#1d3f2a}
+  .opa .tag.r{border-color:#ff7a6b88;color:var(--red)}
+  .opa .tag.a{border-color:#ffbd3866;color:#ffbd38}
+  .opa .sp{flex:1}
+  .opa .tg{width:26px;height:14px;border:1px solid var(--fg);position:relative;flex-shrink:0}
+  .opa .tg::after{content:"";position:absolute;top:2px;left:2px;width:8px;height:8px;background:var(--fg)}
+  .opa .tg.on{background:var(--fg)}
+  .opa .tg.on::after{left:14px;background:var(--bg)}
+  .opa .cat{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .opa .cc{border:1px solid var(--ln);padding:9px 10px;display:flex;flex-direction:column;gap:4px}
+  .opa .cc .hd{display:flex;align-items:center;gap:6px}
+  .opa .chips{display:flex;gap:6px}
+  .opa .chip{padding:2px 8px;border:1px solid var(--ln);color:var(--mut)}
+  .opa .chip.on{background:var(--fg);color:var(--bg);border-color:var(--fg)}
+  .opa .dim{opacity:.35}
+  .opa .drawer{position:absolute;top:0;right:0;bottom:0;width:64%;background:#062424;border-left:1px solid var(--fg);box-shadow:-12px 0 24px #0008;display:flex;flex-direction:column}
+  .opa .meta{display:grid;grid-template-columns:auto 1fr;gap:3px 12px;padding:10px 12px;border-bottom:1px solid var(--ln)}
+  .opa .meta span:nth-child(odd){color:var(--mut)}
+  .opa .seg{display:inline-flex;border:1px solid var(--ln)}
+  .opa .seg span{padding:1px 7px;color:var(--mut)}
+  .opa .seg span.on{background:var(--fg);color:var(--bg)}
+  .opa .veil{position:absolute;inset:0;background:#000a;display:flex;align-items:center;justify-content:center}
+  .opa .dlg{width:420px;background:#062424;border:1px solid var(--fg)}
+  .opa .f{padding:6px 12px}
+  .opa .f label{display:block;font-size:10px;letter-spacing:.1em;color:var(--mut);margin-bottom:3px}
+  .opa .in{border:1px solid var(--ln);padding:4px 6px;color:var(--fg)}
+  .opa .in.ph{color:#ffe6cb55}
+  .opa .tabs{display:flex;border-bottom:1px solid var(--ln)}
+  .opa .tabs span{padding:6px 12px;color:var(--mut)}
+  .opa .tabs span.on{color:var(--fg);border-bottom:2px solid var(--fg)}
+  .opa .code{margin:6px 12px;border:1px solid var(--ln);padding:8px;color:#ffe6cbcc;font-size:11px;white-space:pre;line-height:1.5}
+</style>
+
+<h2>MCP 页草图</h2>
+<p class="subtitle">上半："我的 MCP 服务"（看状态、开关、查看工具）。下半：目录，点一下安装。右上角"手动添加"给自己填配置用。</p>
+
+<div class="mockup">
+  <div class="mockup-header">① 主体</div>
+  <div class="mockup-body">
+    <div class="opa">
+      <div class="side">
+        <div class="brand">PERSONAL<br>AGENT</div>
+        <div class="it">对话</div><div class="it">知识库</div><div class="it">用量</div><div class="gap"></div>
+        <div class="it">模型</div><div class="it">技能</div><div class="it on">MCP</div><div class="it">配置</div><div class="it">系统</div>
+      </div>
+      <div class="main">
+        <div class="top"><h4>MCP</h4><span class="sp"></span><span class="btn">重新加载</span><span class="btn pri">+ 手动添加</span></div>
+        <div class="body">
+          <div class="sh">我的 MCP 服务（3）</div>
+          <div class="box">
+            <div class="row"><span class="tg on"></span><div><div class="nm">files</div><div class="sub">共享文件夹 · 本地进程 npx · 14 个工具</div></div><span class="sp"></span><span class="tag g">● 已连接</span><span class="btn">查看工具</span><span class="btn">编辑</span></div>
+            <div class="row"><span class="tg on"></span><div><div class="nm">github</div><div class="sub">GitHub · 网络 · 需要 GITHUB_TOKEN</div></div><span class="sp"></span><span class="tag r">● 出错：401 密钥无效</span><span class="btn">查看工具</span><span class="btn">编辑</span></div>
+            <div class="row" style="opacity:.5"><span class="tg"></span><div><div class="nm">fetch</div><div class="sub">网页抓取 · 本地进程 uvx · 已停用</div></div><span class="sp"></span><span class="tag">○ 已停用</span><span class="btn">查看工具</span><span class="btn">编辑</span></div>
+          </div>
+
+          <div class="sh">目录（24） <small>挑好的常用服务，点一下安装</small><span class="sp"></span><span class="search">搜索…</span></div>
+          <div class="cat">
+            <div class="cc"><div class="hd"><span class="nm">github</span><span class="tag">网络</span><span class="tag a">需要密钥</span><span class="sp"></span><span class="tag g">已安装</span></div><div class="sub">仓库、Issue、PR 的读写。</div></div>
+            <div class="cc"><div class="hd"><span class="nm">postgres</span><span class="tag">本地进程</span><span class="tag a">需要连接串</span><span class="sp"></span><span class="btn pri">安装</span></div><div class="sub">只读查询 PostgreSQL 数据库。</div></div>
+            <div class="cc"><div class="hd"><span class="nm">brave-search</span><span class="tag">本地进程</span><span class="tag a">需要密钥</span><span class="sp"></span><span class="btn pri">安装</span></div><div class="sub">网页搜索与新闻搜索。</div></div>
+            <div class="cc"><div class="hd"><span class="nm">notion</span><span class="tag">网络</span><span class="tag a">需要密钥</span><span class="sp"></span><span class="btn pri">安装</span></div><div class="sub">读写 Notion 页面与数据库。</div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="split" style="margin-top:24px">
+  <div class="mockup">
+    <div class="mockup-header">② 目录里点"安装" → 只问必须填的</div>
+    <div class="mockup-body">
+      <div class="opa" style="height:360px">
+        <div class="main dim"><div class="top"><h4>MCP</h4></div></div>
+        <div class="veil">
+          <div class="dlg">
+            <div class="top"><h4>安装 brave-search</h4><span class="sp"></span><span class="sub">✕</span></div>
+            <div class="f sub">网页搜索与新闻搜索 · 本地进程（npx）</div>
+            <div class="f"><label>BRAVE_API_KEY（必填）</label><div class="in">••••••••••••3f9a</div><div class="sub" style="margin-top:3px">保存到 .env，页面上之后只显示末 4 位</div></div>
+            <div class="f"><label>服务名（也是工具名前缀）</label><div class="in">brave_search</div></div>
+            <div style="display:flex;gap:8px;padding:10px 12px;border-top:1px solid var(--ln);margin-top:6px"><span class="btn">测试连接</span><span class="sp"></span><span class="btn">取消</span><span class="btn pri">安装并连接</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="mockup">
+    <div class="mockup-header">③ 点"查看工具" → 抽屉：工具清单 + 每个工具要不要先问你</div>
+    <div class="mockup-body">
+      <div class="opa" style="height:360px">
+        <div class="main dim"><div class="top"><h4>MCP</h4></div></div>
+        <div class="drawer" style="width:100%">
+          <div class="top"><h4>files</h4><span class="tag g">● 已连接</span><span class="sp"></span><span class="sub">✕</span></div>
+          <div class="meta"><span>启动</span><span>npx -y @modelcontextprotocol/server-filesystem /shared</span><span>未写规则时</span><span>只读工具自动执行，其余先问你</span></div>
+          <div class="row"><div><div class="nm">files_read_file</div><div class="sub">读取文件内容</div></div><span class="sp"></span><span class="tag">只读</span><span class="seg"><span class="on">自动</span><span>先问</span></span></div>
+          <div class="row"><div><div class="nm">files_list_directory</div><div class="sub">列出目录</div></div><span class="sp"></span><span class="tag">只读</span><span class="seg"><span class="on">自动</span><span>先问</span></span></div>
+          <div class="row"><div><div class="nm">files_write_file</div><div class="sub">写入文件</div></div><span class="sp"></span><span class="seg"><span>自动</span><span class="on">先问</span></span></div>
+          <div class="row"><div><div class="nm">files_move_file</div><div class="sub">移动 / 重命名</div></div><span class="sp"></span><span class="seg"><span>自动</span><span class="on">先问</span></span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="mockup" style="margin-top:24px">
+  <div class="mockup-header">④ "+ 手动添加" → 抽屉：表单 或 直接粘贴 JSON</div>
+  <div class="mockup-body">
+    <div class="opa" style="height:360px">
+      <div class="main dim"><div class="top"><h4>MCP</h4></div></div>
+      <div class="drawer" style="width:70%">
+        <div class="top"><h4>手动添加 MCP 服务</h4><span class="sp"></span><span class="sub">✕</span></div>
+        <div class="tabs"><span class="on">本地进程</span><span>网络地址</span><span>粘贴 JSON</span></div>
+        <div class="f"><label>服务名 · 描述</label><div class="in ph">如 my_notes · 我的笔记</div></div>
+        <div class="f"><label>启动命令</label><div class="in ph">npx / uvx / 可执行文件路径</div></div>
+        <div class="f"><label>参数（每行一个）</label><div class="in ph" style="height:34px">-y<br>@scope/server@1.2.3</div></div>
+        <div class="f"><label>环境变量 / 密钥</label><div class="in ph">NOTES_TOKEN = ••••   + 添加</div></div>
+        <div style="margin-top:auto;display:flex;gap:8px;padding:10px 12px;border-top:1px solid var(--ln)"><span class="btn">测试连接</span><span class="sp"></span><span class="btn pri">保存并连接</span></div>
+      </div>
+    </div>
+  </div>
+</div>
+<p class="subtitle" style="margin-top:6px">"粘贴 JSON"标签页：直接贴别处常见的 <code>{"mcpServers": {...}}</code> 配置，自动识别成上面的字段。</p>
+
+    </div>
+  </div>
+
+</body>
+</html>

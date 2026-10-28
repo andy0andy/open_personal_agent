@@ -1,0 +1,137 @@
+[project]
+name = "open-personal-agent"
+version = "0.1.0"
+description = "个人智能体：deepagents + LiteLLM 网关 + PostgreSQL + FastAPI + React"
+requires-python = "==3.12.*"
+dependencies = [
+    "alembic==1.20.0",
+    "deepagents==0.7.23",
+    "fastapi==0.143.0",
+    "httpx==0.28.1",
+    "langchain==1.4.4",
+    "langchain-core==1.6.9",
+    "langchain-litellm==0.11.0",
+    "langgraph==1.2.14",
+    "langgraph-checkpoint-postgres==3.1.2",
+    "litellm==1.105.0",
+    "psycopg[binary]==3.3.6",
+    "psycopg-pool==3.3.3",
+    "pydantic==2.14.1",
+    "pydantic-settings[yaml]==2.15.0",
+    "sqlalchemy==2.1.4",
+    "uvicorn[standard]==0.54.0",
+    "pyyaml==6.0.3",
+    "openpyxl==3.1.5",
+    "jieba==0.42.1",
+    "markitdown[pdf,docx,pptx,xlsx]==0.1.8",
+    "langchain-mcp-adapters==0.3.2",
+    "mcp==1.30.0",
+    "pandas==3.0.6",
+    "numpy==2.5.4",
+    "matplotlib==3.11.2",
+    "seaborn==0.13.2",
+    "python-docx==1.2.0",
+    "python-pptx==1.0.2",
+    "pymupdf==1.28.2",
+    "pillow==12.3.0",
+]
+
+[dependency-groups]
+dev = [
+    "import-linter==2.15",
+    "mypy==2.4.0",
+    "pytest==9.1.1",
+    "pytest-asyncio==1.4.0",
+    "ruff==0.17.0",
+    "types-openpyxl==3.1.5.20260827",
+    "types-pyyaml==6.0.12.20260906",
+]
+
+[tool.uv]
+# 应用项目，不打包发布；顶层目录 agents / backend / common / config 直接作为包导入
+package = false
+# 依赖冷却期（设计 2026-10-23 7.5）：新发布不满 3 天的版本不装（被投毒的包多在几天内被发现下架）
+exclude-newer = "3 days"
+
+[tool.alembic]
+script_location = "%(here)s/backend/migrations"
+prepend_sys_path = ["."]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+extend-exclude = ["frontend", ".workdata", "docs"]  # docs 里的代码块是示意，不参与格式检查
+
+[tool.ruff.lint]
+# C901、PLR0915：复杂度与语句数的上限（设计 2026-10-23 7.4，超了就拆小）
+select = ["E", "W", "F", "I", "B", "UP", "SIM", "RUF", "ASYNC", "PT", "N", "BLE", "C901", "PLR0915"]
+# 中文注释、文档字符串、字符串里的全角标点会被误报为"易混淆字符"
+ignore = ["RUF001", "RUF002", "RUF003"]
+
+[tool.ruff.lint.mccabe]
+max-complexity = 20
+
+[tool.ruff.lint.isort]
+known-first-party = ["agents", "backend", "common", "config"]
+
+[tool.mypy]
+python_version = "3.12"
+strict = true
+plugins = ["pydantic.mypy"]
+exclude = ["^frontend/", "^\\.workdata/"]
+
+[[tool.mypy.overrides]]
+module = ["jieba"]  # 中文分词库没有类型标注
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+# pymupdf、python-docx：智能体执行的代码与生成测试样例文件的脚本用到
+module = ["pymupdf", "docx"]
+ignore_missing_imports = true
+# 现在装在项目环境里（智能体执行的代码要用，D20），但没有可用的类型标注：照旧不检查它们
+follow_imports = "skip"
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
+testpaths = ["agents", "backend", "common", "config", "deploy"]
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "session"
+asyncio_default_test_loop_scope = "session"
+markers = [
+    "integration: 需要 compose 的 test 配置组（postgres-test）",
+    "live: 需要真实模型密钥与运行中的网关，会产生费用",
+]
+addopts = "-m 'not integration and not live'"
+# jieba 0.42.1 的旧代码里有 Python 3.12 不认的转义写法，加载时报语法警告，与本项目无关
+filterwarnings = ["ignore:invalid escape sequence:SyntaxWarning"]
+
+[tool.importlinter]
+root_packages = ["agents", "backend", "common", "config"]
+
+[[tool.importlinter.contracts]]
+name = "单向依赖：backend → agents → config → common"
+type = "layers"
+layers = ["backend", "agents", "config", "common"]
+
+[[tool.importlinter.contracts]]
+name = "backend 只使用 agents 的公开入口"
+type = "forbidden"
+source_modules = ["backend"]
+forbidden_modules = [
+    "agents.main_agent.models.cleanup",
+    "agents.main_agent.models.litellm_proxy",
+    "agents.main_agent.runtime.agent",
+    "agents.main_agent.runtime.interruption",
+    "agents.main_agent.runtime.tracker",
+    "agents.main_agent.runtime.translator",
+    "agents.main_agent.usage.repo",
+    "agents.main_agent.workspace.files",
+    "agents.main_agent.knowledge.blobs_local",
+    "agents.main_agent.knowledge.markitdown_parser",
+    "agents.main_agent.integrations.mcp_adapters",
+    "agents.main_agent.conversations.pg",
+    "agents.main_agent.knowledge.pgvector",
+    "agents.main_agent.workspace.local",
+    "agents.main_agent.workspace.local_sandbox",
+]
+allow_indirect_imports = true

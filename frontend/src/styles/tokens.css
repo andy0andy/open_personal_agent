@@ -1,0 +1,200 @@
+/*
+ * 主题令牌（设计文档 13.2）：组件只使用这里映射出的语义样式类，不写具体颜色。
+ * :root 中的默认值等于默认主题（themes/default.ts），保证脚本运行前首屏颜色就正确；
+ * 两处的一致性由 themes/themes.test.ts 检查。
+ */
+:root {
+  --theme-background: #041c1c;
+  --theme-primary: #ffe6cb;
+  --theme-danger: #ff5a5f;
+  --theme-success: #4ade80;
+  --theme-warning: #ffbd38;
+  --theme-info: #6aa7f0;
+  --theme-muted-ratio: 62%;
+  --theme-soft-ratio: 10%;
+  --theme-font-sans:
+    system-ui, -apple-system, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+  --theme-font-mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  --theme-base-size: 15px;
+  --theme-line-height: 1.55;
+  --theme-radius: 0.5rem;
+  --theme-spacing: 0.25rem;
+  color-scheme: dark;
+}
+
+:root[data-mode="light"] {
+  --theme-background: #fbf7f0;
+  --theme-primary: #0b3b3a;
+  --theme-danger: #b42318;
+  --theme-success: #1f7a4d;
+  --theme-warning: #b45309;
+  --theme-info: #1d5fa8;
+  --theme-muted-ratio: 76%;
+  --theme-soft-ratio: 7%;
+  color-scheme: light;
+}
+
+/*
+ * 由背景与主色派生其余颜色（比例参考 Hermes Agent）；提示色与次要文字的比例按模式设定
+ * （设计 2026-10-22 2.1）。淡底上的文字用正文色，提示色只用在圆点、图标、边框上。
+ */
+@theme inline {
+  --color-background: var(--theme-background);
+  --color-foreground: var(--theme-primary);
+  --color-card: color-mix(in srgb, var(--theme-primary) 4%, var(--theme-background));
+  --color-secondary: color-mix(in srgb, var(--theme-primary) 6%, var(--theme-background));
+  --color-muted: color-mix(in srgb, var(--theme-primary) 8%, var(--theme-background));
+  --color-accent: color-mix(in srgb, var(--theme-primary) 11%, var(--theme-background));
+  --color-border: color-mix(in srgb, var(--theme-primary) 15%, var(--theme-background));
+  --color-input: color-mix(
+    in srgb,
+    var(--theme-primary) var(--input-strength),
+    var(--theme-background)
+  );
+  --color-ring: color-mix(
+    in srgb,
+    var(--theme-primary) var(--ring-strength),
+    var(--theme-background)
+  );
+  --color-muted-foreground: color-mix(
+    in srgb,
+    var(--theme-primary) var(--theme-muted-ratio),
+    var(--theme-background)
+  );
+  --color-primary: var(--theme-primary);
+  --color-primary-foreground: var(--theme-background);
+  --color-danger: var(--theme-danger);
+  --color-success: var(--theme-success);
+  --color-warning: var(--theme-warning);
+  --color-info: var(--theme-info);
+  --color-danger-soft: color-mix(
+    in srgb,
+    var(--theme-danger) var(--theme-soft-ratio),
+    var(--theme-background)
+  );
+  --color-success-soft: color-mix(
+    in srgb,
+    var(--theme-success) var(--theme-soft-ratio),
+    var(--theme-background)
+  );
+  --color-warning-soft: color-mix(
+    in srgb,
+    var(--theme-warning) var(--theme-soft-ratio),
+    var(--theme-background)
+  );
+  --color-info-soft: color-mix(
+    in srgb,
+    var(--theme-info) var(--theme-soft-ratio),
+    var(--theme-background)
+  );
+  --font-sans: var(--theme-font-sans);
+  --font-mono: var(--theme-font-mono);
+  --radius-sm: calc(var(--theme-radius) * 0.6);
+  --radius-md: calc(var(--theme-radius) * 0.8);
+  --radius-lg: var(--theme-radius);
+  --radius-xl: calc(var(--theme-radius) * 1.5);
+  --spacing: var(--theme-spacing);
+}
+
+/*
+ * 输入框边框（开关轨道同用）与焦点框（积压小问题 H3）：在背景与卡片上对比度不低于 3:1，
+ * 才看得出哪里能点、焦点在哪。按模式设比例，主题文件不用加字段；浅色原来 35%、45% 只有 2 左右。
+ */
+:root {
+  --input-strength: 40%;
+  --ring-strength: 45%;
+}
+:root[data-mode="light"] {
+  --input-strength: 58%;
+  --ring-strength: 58%;
+}
+
+/*
+ * 代码高亮的颜色（D19）：由提示色与主色混合，主题文件不用加字段。浅色的提示色已经够深
+ * （设计 2026-10-22 2.1），混合强度从 35% 提到 70%，几种颜色才分得清。
+ */
+:root {
+  --syntax-strength: 85%;
+  --syntax-keyword: color-mix(
+    in srgb,
+    var(--theme-warning) var(--syntax-strength),
+    var(--theme-primary)
+  );
+  --syntax-string: color-mix(
+    in srgb,
+    var(--theme-success) var(--syntax-strength),
+    var(--theme-primary)
+  );
+  --syntax-number: color-mix(
+    in srgb,
+    var(--theme-danger) var(--syntax-strength),
+    var(--theme-primary)
+  );
+  --syntax-type: color-mix(
+    in srgb,
+    color-mix(in srgb, var(--theme-warning) 50%, var(--theme-danger)) var(--syntax-strength),
+    var(--theme-primary)
+  );
+}
+:root[data-mode="light"] {
+  --syntax-strength: 70%;
+}
+
+html {
+  font-size: var(--theme-base-size);
+}
+
+body {
+  margin: 0;
+  background: var(--color-background);
+  color: var(--color-foreground);
+  font-family: var(--font-sans);
+  line-height: var(--theme-line-height);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* 顶部一层很淡的暖光，营造 Hermes 风格的层次感 */
+.app-glow {
+  background-image: radial-gradient(
+    60rem 28rem at 15% -10%,
+    color-mix(in srgb, var(--theme-warning) 10%, transparent),
+    transparent 70%
+  );
+}
+
+/* 放在 base 层：组件可以用样式类覆盖 */
+@layer base {
+  ::selection {
+    background: color-mix(in srgb, var(--theme-primary) 25%, transparent);
+  }
+
+  /* 用键盘操作时看得见焦点在哪（设计 2026-10-22 2.2）；鼠标点击不显示 */
+  :focus-visible {
+    outline: 2px solid var(--color-ring);
+    outline-offset: 2px;
+  }
+}
+
+/* 系统开启"减少动效"时，动画与过渡几乎为零（呼吸点、旋转图标、展开动画都停下） */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  ::before,
+  ::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/*
+ * 用量图的"输出"柱加斜纹（积压小问题 H3）：两段不只靠颜色区分，色弱也分得清。
+ * 纹路用背景色半透明叠在成功色上，深浅两版都跟着主题走。
+ */
+@utility bar-hatched {
+  background-image: repeating-linear-gradient(
+    135deg,
+    transparent 0 3px,
+    color-mix(in srgb, var(--color-background) 45%, transparent) 3px 5px
+  );
+}

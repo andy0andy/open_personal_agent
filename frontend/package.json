@@ -1,0 +1,55 @@
+{
+  "name": "open-personal-agent-frontend",
+  "private": true,
+  "type": "module",
+  "packageManager": "pnpm@11.17.0",
+  "engines": {
+    "node": ">=24.15.0 <25"
+  },
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc -b && vite build",
+    "test": "vitest run",
+    "e2e": "playwright test",
+    "lint": "eslint .",
+    "format": "prettier --check .",
+    "types": "openapi-typescript src/api/generated/openapi.json -o src/api/generated/schema.d.ts",
+    "types:check": "openapi-typescript src/api/generated/openapi.json -o src/api/generated/schema.d.ts --check"
+  },
+  "dependencies": {
+    "@assistant-ui/react": "0.15.28",
+    "@assistant-ui/react-markdown": "0.14.21",
+    "@tanstack/react-query": "5.104.1",
+    "hast-util-to-jsx-runtime": "2.3.6",
+    "katex": "0.16.47",
+    "lowlight": "3.3.0",
+    "lucide-react": "1.55.0",
+    "mdast-util-from-markdown": "2.1.0",
+    "react": "19.3.0",
+    "react-dom": "19.3.0",
+    "react-markdown": "10.1.0",
+    "react-router": "7.18.4",
+    "rehype-katex": "7.0.1",
+    "remark-gfm": "4.0.1",
+    "remark-math": "6.0.0"
+  },
+  "devDependencies": {
+    "@eslint/js": "10.0.1",
+    "@playwright/test": "1.63.0",
+    "@tailwindcss/vite": "4.3.3",
+    "@types/node": "24.19.2",
+    "@types/react": "19.3.0",
+    "@types/react-dom": "19.3.0",
+    "@vitejs/plugin-react": "6.1.2",
+    "eslint": "10.12.0",
+    "eslint-plugin-react-hooks": "7.1.1",
+    "globals": "17.13.0",
+    "openapi-typescript": "7.13.0",
+    "prettier": "3.9.10",
+    "tailwindcss": "4.3.3",
+    "typescript": "6.0.3",
+    "typescript-eslint": "8.71.1",
+    "vite": "8.3.4",
+    "vitest": "5.0.3"
+  }
+}

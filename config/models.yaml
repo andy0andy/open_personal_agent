@@ -1,0 +1,17 @@
+# LiteLLM 网关自身的设置（D22）。模型全部在网关数据库里：后端首次启动时按 config/seed/models.yaml
+# 导入（经网关的模型管理接口），之后在模型页增删改，不用重启网关。
+# 网关需要 .env 里的 LITELLM_SALT_KEY 加密存进数据库的模型参数：设了以后不能改。
+# 修改本文件后执行 make restart-gateway 生效。
+model_list: []
+
+litellm_settings:
+  drop_params: true # 各厂商不支持的参数自动丢弃（实测不会丢弃 thinking）
+
+router_settings:
+  # 重试只留这一层（设计 2026-10-23 4.3）：只在建立连接前重试，已经开始输出后不重发；
+  # 后端客户端不再自己重试（max_retries 0），也不配备用模型
+  num_retries: 2
+
+general_settings:
+  master_key: os.environ/LITELLM_MASTER_KEY
+  database_url: os.environ/DATABASE_URL

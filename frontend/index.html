@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>个人智能体</title>
+    <script>
+      // 在样式与脚本加载前先确定深浅色，避免刷新时闪一下（存储键与 src/themes/mode.ts 一致）
+      (function () {
+        var mode = "dark";
+        try {
+          var saved = localStorage.getItem("opa.color-mode");
+          var prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
+          mode = saved === "light" || saved === "dark" ? saved : prefersDark ? "dark" : "light";
+        } catch (e) {}
+        document.documentElement.dataset.mode = mode;
+      })();
+    </script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

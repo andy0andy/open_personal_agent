@@ -1,0 +1,330 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Superpowers Brainstorming</title>
+  <style>
+    /*
+     * BRAINSTORM COMPANION FRAME TEMPLATE
+     *
+     * This template provides a consistent frame with:
+     * - OS-aware light/dark theming
+     * - Header branding and connection status
+     * - Scrollable main content area
+     * - CSS helpers for common UI patterns
+     *
+     * Content is injected via placeholder comment in #frame-content.
+     */
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { height: 100%; overflow: hidden; }
+
+    /* ===== THEME VARIABLES ===== */
+    :root {
+      --bg-primary: #f5f5f7;
+      --bg-secondary: #ffffff;
+      --bg-tertiary: #e5e5e7;
+      --border: #d1d1d6;
+      --text-primary: #1d1d1f;
+      --text-secondary: #86868b;
+      --text-tertiary: #aeaeb2;
+      --accent: #0071e3;
+      --accent-hover: #0077ed;
+      --success: #34c759;
+      --warning: #ff9f0a;
+      --error: #ff3b30;
+      --selected-bg: #e8f4fd;
+      --selected-border: #0071e3;
+    }
+
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg-primary: #1d1d1f;
+        --bg-secondary: #2d2d2f;
+        --bg-tertiary: #3d3d3f;
+        --border: #424245;
+        --text-primary: #f5f5f7;
+        --text-secondary: #86868b;
+        --text-tertiary: #636366;
+        --accent: #0a84ff;
+        --accent-hover: #409cff;
+        --selected-bg: rgba(10, 132, 255, 0.15);
+        --selected-border: #0a84ff;
+      }
+    }
+
+    body {
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+      background: var(--bg-primary);
+      color: var(--text-primary);
+      display: flex;
+      flex-direction: column;
+      line-height: 1.5;
+    }
+
+    /* ===== FRAME STRUCTURE ===== */
+    .brand { display: flex; align-items: center; min-width: 0; overflow: hidden; color: var(--text-secondary); line-height: 1; }
+    .brand a { color: inherit; text-decoration: none; display: flex; align-items: center; gap: 0.5rem; min-width: 0; max-width: 100%; line-height: 1; }
+    .brand-copy { display: block; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; line-height: 1; transform: translateY(-1px); }
+    .brand-logo { display: block; height: 1em; width: auto; max-width: 180px; flex-shrink: 0; filter: invert(1); }
+    @media (prefers-color-scheme: dark) {
+      .brand-logo { filter: none; }
+    }
+    .status { font-size: 0.7rem; color: var(--status-color, var(--success)); display: flex; align-items: center; gap: 0.4rem; justify-self: end; white-space: nowrap; line-height: 1; }
+    .status::before { content: ''; width: 6px; height: 6px; background: var(--status-color, var(--success)); border-radius: 50%; }
+
+    .main { flex: 1; overflow-y: auto; }
+    #frame-content { padding: 2rem; min-height: 100%; }
+
+    .header {
+      background: var(--bg-secondary);
+      border-bottom: 1px solid var(--border);
+      padding: 0.5rem 1.5rem;
+      flex-shrink: 0;
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      align-items: center;
+      gap: 1rem;
+      min-height: 42px;
+    }
+    .header .brand { justify-self: start; width: 100%; font-size: 0.75rem; line-height: 1; }
+    .header .status { grid-column: 2; line-height: 1; }
+    .header span {
+      font-size: 0.75rem;
+      color: var(--text-secondary);
+    }
+    .header .selected-text {
+      color: var(--accent);
+      font-weight: 500;
+    }
+
+    /* ===== TYPOGRAPHY ===== */
+    h2 { font-size: 1.5rem; font-weight: 600; margin-bottom: 0.5rem; }
+    h3 { font-size: 1.1rem; font-weight: 600; margin-bottom: 0.25rem; }
+    .subtitle { color: var(--text-secondary); margin-bottom: 1.5rem; }
+    .section { margin-bottom: 2rem; }
+    .label { font-size: 0.7rem; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.5rem; }
+
+    /* ===== OPTIONS (for A/B/C choices) ===== */
+    .options { display: flex; flex-direction: column; gap: 0.75rem; }
+    .option {
+      background: var(--bg-secondary);
+      border: 2px solid var(--border);
+      border-radius: 12px;
+      padding: 1rem 1.25rem;
+      cursor: pointer;
+      transition: all 0.15s ease;
+      display: flex;
+      align-items: flex-start;
+      gap: 1rem;
+    }
+    .option:hover { border-color: var(--accent); }
+    .option.selected { background: var(--selected-bg); border-color: var(--selected-border); }
+    .option .letter {
+      background: var(--bg-tertiary);
+      color: var(--text-secondary);
+      width: 1.75rem; height: 1.75rem;
+      border-radius: 6px;
+      display: flex; align-items: center; justify-content: center;
+      font-weight: 600; font-size: 0.85rem; flex-shrink: 0;
+    }
+    .option.selected .letter { background: var(--accent); color: white; }
+    .option .content { flex: 1; }
+    .option .content h3 { font-size: 0.95rem; margin-bottom: 0.15rem; }
+    .option .content p { color: var(--text-secondary); font-size: 0.85rem; margin: 0; }
+
+    /* ===== CARDS (for showing designs/mockups) ===== */
+    .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1rem; }
+    .card {
+      background: var(--bg-secondary);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      overflow: hidden;
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+    .card:hover { border-color: var(--accent); transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
+    .card.selected { border-color: var(--selected-border); border-width: 2px; }
+    .card-image { background: var(--bg-tertiary); aspect-ratio: 16/10; display: flex; align-items: center; justify-content: center; }
+    .card-body { padding: 1rem; }
+    .card-body h3 { margin-bottom: 0.25rem; }
+    .card-body p { color: var(--text-secondary); font-size: 0.85rem; }
+
+    /* ===== MOCKUP CONTAINER ===== */
+    .mockup {
+      background: var(--bg-secondary);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      overflow: hidden;
+      margin-bottom: 1.5rem;
+    }
+    .mockup-header {
+      background: var(--bg-tertiary);
+      padding: 0.5rem 1rem;
+      font-size: 0.75rem;
+      color: var(--text-secondary);
+      border-bottom: 1px solid var(--border);
+    }
+    .mockup-body { padding: 1.5rem; }
+
+    /* ===== SPLIT VIEW (side-by-side comparison) ===== */
+    .split { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; }
+    @media (max-width: 700px) { .split { grid-template-columns: 1fr; } }
+
+    /* ===== PROS/CONS ===== */
+    .pros-cons { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin: 1rem 0; }
+    .pros, .cons { background: var(--bg-secondary); border-radius: 8px; padding: 1rem; }
+    .pros h4 { color: var(--success); font-size: 0.85rem; margin-bottom: 0.5rem; }
+    .cons h4 { color: var(--error); font-size: 0.85rem; margin-bottom: 0.5rem; }
+    .pros ul, .cons ul { margin-left: 1.25rem; font-size: 0.85rem; color: var(--text-secondary); }
+    .pros li, .cons li { margin-bottom: 0.25rem; }
+
+    /* ===== PLACEHOLDER (for mockup areas) ===== */
+    .placeholder {
+      background: var(--bg-tertiary);
+      border: 2px dashed var(--border);
+      border-radius: 8px;
+      padding: 2rem;
+      text-align: center;
+      color: var(--text-tertiary);
+    }
+
+    /* ===== INLINE MOCKUP ELEMENTS ===== */
+    .mock-nav { background: var(--accent); color: white; padding: 0.75rem 1rem; display: flex; gap: 1.5rem; font-size: 0.9rem; }
+    .mock-sidebar { background: var(--bg-tertiary); padding: 1rem; min-width: 180px; }
+    .mock-content { padding: 1.5rem; flex: 1; }
+    .mock-button { background: var(--accent); color: white; border: none; padding: 0.5rem 1rem; border-radius: 6px; font-size: 0.85rem; }
+    .mock-input { background: var(--bg-primary); border: 1px solid var(--border); border-radius: 6px; padding: 0.5rem; width: 100%; }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <!-- BRANDING -->
+    <div class="status">Connecting…</div>
+  </div>
+
+  <div class="main">
+    <div id="frame-content">
+      <style>
+  .opa{--bg:#041c1c;--fg:#ffe6cb;--ln:#1d3a39;--mut:#ffe6cb99;--red:#ff7a6b;background:var(--bg);color:var(--fg);font:12px/1.45 ui-monospace,"SF Mono",monospace;border:1px solid var(--ln);border-radius:6px;display:flex;overflow:hidden;position:relative}
+  .opa .side{width:130px;border-right:1px solid var(--ln);padding:8px 0}
+  .opa .brand{padding:0 10px 8px;font-weight:700;letter-spacing:.08em;border-bottom:1px solid var(--ln);margin-bottom:6px}
+  .opa .it{padding:4px 10px;letter-spacing:.06em;opacity:.7}
+  .opa .it.on{background:#ffe6cb1f;opacity:1;border-left:2px solid var(--fg)}
+  .opa .gap{height:10px}
+  .opa .main{flex:1;min-width:0}
+  .opa .top{display:flex;align-items:center;gap:8px;padding:10px 14px;border-bottom:1px solid var(--ln)}
+  .opa .top h4{margin:0;font-size:14px;letter-spacing:.04em}
+  .opa .btn{border:1px solid var(--fg);padding:3px 8px;font-size:10px;letter-spacing:.1em;text-transform:uppercase;white-space:nowrap}
+  .opa .btn.pri{background:var(--fg);color:var(--bg)}
+  .opa .btn.danger{border-color:var(--red);color:var(--red)}
+  .opa .btn.dangerfill{background:var(--red);border-color:var(--red);color:var(--bg)}
+  .opa .ico{width:22px;height:20px;display:inline-flex;align-items:center;justify-content:center;color:var(--mut)}
+  .opa .body{padding:12px 14px;display:flex;flex-direction:column;gap:12px}
+  .opa .box{border:1px solid var(--ln)}
+  .opa .bh{padding:8px 10px;border-bottom:1px solid var(--ln);font-weight:700;letter-spacing:.1em;text-transform:uppercase;display:flex;align-items:center;gap:8px}
+  .opa .bh small{font-weight:400;letter-spacing:0;text-transform:none;color:var(--mut)}
+  .opa .row{display:flex;align-items:center;gap:10px;padding:8px 10px;border-bottom:1px solid var(--ln)}
+  .opa .row:last-child{border-bottom:0}
+  .opa .nm{font-weight:700}
+  .opa .sub{color:var(--mut);font-size:11px}
+  .opa .tag{border:1px solid #ffe6cb55;padding:0 5px;font-size:10px;color:var(--mut)}
+  .opa .tag.a{border-color:#ffbd3866;color:#ffbd38}
+  .opa .tag.g{border-color:#3f7f4f;color:#8fd19b;background:#1d3f2a}
+  .opa .sp{flex:1}
+  .opa .cols{display:grid;grid-template-columns:1fr 1fr}
+  .opa .cols .row{border-bottom:0}
+  .opa .cols .row+.row{border-left:1px solid var(--ln)}
+  .opa .sel{border:1px solid var(--ln);padding:3px 8px;min-width:150px;display:flex;justify-content:space-between}
+  .opa .veil{position:absolute;inset:0;background:#000a;display:flex;align-items:center;justify-content:center}
+  .opa .dlg{width:380px;background:#062424;border:1px solid var(--red)}
+  .opa .dlg p{margin:0;padding:6px 12px}
+  .opa .warn{color:#ffbd38}
+  .opa .drawer{position:absolute;top:0;right:0;bottom:0;width:300px;background:#062424;border-left:1px solid var(--fg);box-shadow:-12px 0 24px #0008;display:flex;flex-direction:column}
+  .opa .f{padding:6px 12px}
+  .opa .f label{display:block;font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--mut);margin-bottom:3px}
+  .opa .in{border:1px solid var(--ln);padding:4px 6px;color:var(--fg)}
+  .opa .in.ph{color:#ffe6cb55}
+  .opa .chk{display:inline-flex;align-items:center;gap:4px;margin-right:8px}
+  .opa .chk i{width:9px;height:9px;border:1px solid var(--fg);display:inline-block}
+  .opa .chk i.x{background:var(--fg)}
+  .opa .dim{opacity:.35}
+</style>
+
+<h2>模型页 v2</h2>
+<p class="subtitle">去掉"模型来源"卡；默认模型直接在卡片里用下拉框改；每行加删除（垃圾桶图标）。下面三张图：主体、删除确认、新增/编辑抽屉。</p>
+
+<div class="mockup">
+  <div class="mockup-header">① 主体</div>
+  <div class="mockup-body">
+    <div class="opa">
+      <div class="side">
+        <div class="brand">PERSONAL<br>AGENT</div>
+        <div class="it">对话</div><div class="it">知识库</div><div class="it">用量</div><div class="gap"></div>
+        <div class="it on">模型</div><div class="it">技能</div><div class="it">MCP</div><div class="it">配置</div><div class="it">系统</div>
+      </div>
+      <div class="main">
+        <div class="top"><h4>模型</h4><span class="sub">4 个已登记</span><span class="sp"></span><span class="btn">重载网关</span><span class="btn pri">+ 新增模型</span></div>
+        <div class="body">
+          <div class="box">
+            <div class="bh">默认模型 <small>新会话的起点；对话里仍可按会话切换</small></div>
+            <div class="cols">
+              <div class="row"><div class="nm">对话模型</div><span class="sp"></span><div class="sel"><span>claude-opus-4-6</span><span>▾</span></div></div>
+              <div class="row"><div class="nm">向量模型</div><span class="sp"></span><div class="sel"><span>embed-qwen3-0.6b</span><span>▾</span></div></div>
+            </div>
+          </div>
+          <div class="box">
+            <div class="bh">已登记模型</div>
+            <div class="row"><div><div class="nm">claude-opus-4-6 <span class="tag a">默认</span></div><div class="sub">公司网关 · 上下文 1M · 输出 128K · $5 / $25 每百万</div></div><span class="sp"></span><span class="tag">思考</span><span class="tag">看图</span><span class="tag">工具</span><span class="btn">测试</span><span class="btn">编辑</span><span class="ico" title="默认模型不能删" style="opacity:.3">🗑</span></div>
+            <div class="row"><div><div class="nm">gemini-3.5-flash</div><div class="sub">公司网关 · 价格未填</div></div><span class="sp"></span><span class="tag g">✓ 可用 · 820ms</span><span class="tag">工具</span><span class="btn">测试</span><span class="btn">编辑</span><span class="ico">🗑</span></div>
+            <div class="row"><div><div class="nm">gpt-5.5-pro</div><div class="sub">公司网关 · 价格未填</div></div><span class="sp"></span><span class="tag">工具</span><span class="btn">测试</span><span class="btn">编辑</span><span class="ico">🗑</span></div>
+            <div class="row"><div><div class="nm">embed-qwen3-0.6b <span class="tag a">默认</span> <span class="tag">向量</span></div><div class="sub">本机 Ollama · 1024 维 · 免费</div></div><span class="sp"></span><span class="btn">测试</span><span class="btn">编辑</span><span class="ico" style="opacity:.3">🗑</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+<p class="subtitle" style="margin-top:6px">默认模型的垃圾桶是灰的（悬停提示"先换掉默认再删"）。"测试"结果就地显示在该行，如 gemini 那行的 ✓ 可用 · 820ms。</p>
+
+<div class="split" style="margin-top:24px">
+  <div class="mockup">
+    <div class="mockup-header">② 点垃圾桶 → 删除确认</div>
+    <div class="mockup-body">
+      <div class="opa" style="height:330px">
+        <div class="main dim"><div class="top"><h4>模型</h4></div></div>
+        <div class="veil">
+          <div class="dlg">
+            <div class="top"><h4>删除 gpt-5.5-pro？</h4></div>
+            <p>将从 models.yaml 移除这条记录并重载网关。</p>
+            <p class="warn">⚠ 有 3 个会话正在用它，这些会话之后会改用默认模型 claude-opus-4-6。</p>
+            <p class="sub">历史消息和用量记录保留，不受影响。</p>
+            <div style="display:flex;gap:8px;padding:10px 12px;border-top:1px solid var(--ln);margin-top:6px"><span class="sp"></span><span class="btn">取消</span><span class="btn dangerfill">删除</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="mockup">
+    <div class="mockup-header">③ 新增 / 编辑 抽屉（编辑时底部多一个删除）</div>
+    <div class="mockup-body">
+      <div class="opa" style="height:330px">
+        <div class="main dim"><div class="top"><h4>模型</h4></div></div>
+        <div class="drawer" style="width:100%">
+          <div class="top"><h4>编辑 gpt-5.5-pro</h4><span class="sp"></span><span class="sub">✕</span></div>
+          <div class="f"><label>来源</label><div class="in">公司 LiteLLM 网关 ▾</div></div>
+          <div class="f"><label>厂商模型 ID · 显示名</label><div class="in">gpt-5.5-pro</div></div>
+          <div class="f"><label>类型 · 能力</label><span class="chk"><i class="x"></i>对话</span><span class="chk"><i></i>向量</span>｜<span class="chk"><i></i>思考</span><span class="chk"><i></i>看图</span><span class="chk"><i class="x"></i>工具</span></div>
+          <div class="f"><label>上下文 / 输出上限 · 价格（每百万）</label><div class="in ph">自动查询，可手改</div></div>
+          <div style="margin-top:auto;padding:10px 12px;display:flex;gap:8px;border-top:1px solid var(--ln)"><span class="btn danger">删除</span><span class="btn">测试连接</span><span class="sp"></span><span class="btn pri">保存并重载</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+    </div>
+  </div>
+
+</body>
+</html>
