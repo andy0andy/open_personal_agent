@@ -1,0 +1,174 @@
+podman compose --env-file .env -f deploy/docker-compose.yml build backend
+[4m>>>> Executing external compose provider "/opt/homebrew/bin/docker-compose". Please see podman-compose(1) for how to disable this message. <<<<
+
+[0m Image open-personal-agent-backend Building 
+ Image open-personal-agent-backend Building 
+Sending build context to Docker daemon  524.4kBSending build context to Docker daemon  828.1kB
+[1/2] STEP 1/7: FROM mirror.gcr.io/library/node:24.21.0-trixie-slim AS frontend
+[1/2] STEP 2/7: WORKDIR /frontend
+--> Using cache cfd97854d34f680acdfc5ac3901143222b1528e2efd8e4f6a90aa4a01c3daf8e
+--> cfd97854d34f
+[1/2] STEP 3/7: RUN npm install --global pnpm@11.17.0
+--> Using cache d0a57b3341019b48790141520b24f0506b15f174457309b2fd0470f52b77e0f8
+--> d0a57b334101
+[1/2] STEP 4/7: COPY frontend/package.json frontend/pnpm-lock.yaml frontend/.npmrc ./
+--> Using cache 0473dad817b66756696b52e05eadc803448c6cfa600ebb497fb9f8242791df30
+--> 0473dad817b6
+[1/2] STEP 5/7: RUN --mount=type=cache,target=/pnpm-store pnpm install --frozen-lockfile --store-dir /pnpm-store
+--> Using cache e63fe1cb46467912544269b011d8edb0f4df12c20bc4080044344785f11a421c
+--> e63fe1cb4646
+[1/2] STEP 6/7: COPY frontend/ ./
+--> 68faa2984205
+[1/2] STEP 7/7: RUN pnpm build
+$ tsc -b && vite build
+vite v8.3.4 building client environment for production...
+transforming...
+✓ 3286 modules transformed.
+rendering chunks...
+computing gzip size...
+dist/index.html                                           0.95 kB │ gzip:   0.61 kB
+dist/assets/KaTeX_Size3-Regular-CTq5MqoE.woff             4.42 kB
+dist/assets/KaTeX_Size4-Regular-Dl5lxZxV.woff2            4.92 kB
+dist/assets/KaTeX_Size2-Regular-Dy4dx90m.woff2            5.20 kB
+dist/assets/KaTeX_Size1-Regular-mCD8mA8B.woff2            5.46 kB
+dist/assets/KaTeX_Size4-Regular-BF-4gkZK.woff             5.98 kB
+dist/assets/KaTeX_Size2-Regular-oD1tc_U0.woff             6.18 kB
+dist/assets/KaTeX_Size1-Regular-C195tn64.woff             6.49 kB
+dist/assets/KaTeX_Caligraphic-Regular-Di6jR-x-.woff2      6.90 kB
+dist/assets/KaTeX_Caligraphic-Bold-Dq_IR9rO.woff2         6.91 kB
+dist/assets/KaTeX_Size3-Regular-DgpXs0kz.ttf              7.58 kB
+dist/assets/KaTeX_Caligraphic-Regular-CTRA-rTL.woff       7.65 kB
+dist/assets/KaTeX_Caligraphic-Bold-BEiXGLvX.woff          7.71 kB
+dist/assets/KaTeX_Script-Regular-D3wIWfF6.woff2           9.64 kB
+dist/assets/KaTeX_SansSerif-Regular-DDBCnlJ7.woff2       10.34 kB
+dist/assets/KaTeX_Size4-Regular-DWFBv043.ttf             10.36 kB
+dist/assets/KaTeX_Script-Regular-D5yQViql.woff           10.58 kB
+dist/assets/KaTeX_Fraktur-Regular-CTYiF6lA.woff2         11.31 kB
+dist/assets/KaTeX_Fraktur-Bold-CL6g_b3V.woff2            11.34 kB
+dist/assets/KaTeX_Size2-Regular-B7gKUWhC.ttf             11.50 kB
+dist/assets/KaTeX_SansSerif-Italic-C3H0VqGB.woff2        12.02 kB
+dist/assets/KaTeX_SansSerif-Bold-D1sUS0GD.woff2          12.21 kB
+dist/assets/KaTeX_Size1-Regular-Dbsnue_I.ttf             12.22 kB
+dist/assets/KaTeX_SansSerif-Regular-CS6fqUqJ.woff        12.31 kB
+dist/assets/KaTeX_Caligraphic-Regular-wX97UBjC.ttf       12.34 kB
+dist/assets/KaTeX_Caligraphic-Bold-ATXxdsX0.ttf          12.36 kB
+dist/assets/KaTeX_Fraktur-Regular-Dxdc4cR9.woff          13.20 kB
+dist/assets/KaTeX_Fraktur-Bold-BsDP51OF.woff             13.29 kB
+dist/assets/KaTeX_Typewriter-Regular-CO6r4hn1.woff2      13.56 kB
+dist/assets/KaTeX_SansSerif-Italic-DN2j7dab.woff         14.11 kB
+dist/assets/KaTeX_SansSerif-Bold-DbIhKOiC.woff           14.40 kB
+dist/assets/KaTeX_Typewriter-Regular-C0xS9mPB.woff       16.02 kB
+dist/assets/KaTeX_Math-BoldItalic-CZnvNsCZ.woff2         16.40 kB
+dist/assets/KaTeX_Math-Italic-t53AETM-.woff2             16.44 kB
+dist/assets/KaTeX_Script-Regular-C5JkGWo-.ttf            16.64 kB
+dist/assets/KaTeX_Main-BoldItalic-DxDJ3AOS.woff2         16.78 kB
+dist/assets/KaTeX_Main-Italic-NWA7e6Wa.woff2             16.98 kB
+dist/assets/KaTeX_Math-BoldItalic-iY-2wyZ7.woff          18.66 kB
+dist/assets/KaTeX_Math-Italic-DA0__PXp.woff              18.74 kB
+dist/assets/KaTeX_Main-BoldItalic-SpSLRI95.woff          19.41 kB
+dist/assets/KaTeX_SansSerif-Regular-BNo7hRIc.ttf         19.43 kB
+dist/assets/KaTeX_Fraktur-Regular-CB_wures.ttf           19.57 kB
+dist/assets/KaTeX_Fraktur-Bold-BdnERNNW.ttf              19.58 kB
+dist/assets/KaTeX_Main-Italic-BMLOBm91.woff              19.67 kB
+dist/assets/KaTeX_SansSerif-Italic-YYjJ1zSn.ttf          22.36 kB
+dist/assets/KaTeX_SansSerif-Bold-CFMepnvq.ttf            24.50 kB
+dist/assets/KaTeX_Main-Bold-Cx986IdX.woff2               25.32 kB
+dist/assets/KaTeX_Main-Regular-B22Nviop.woff2            26.27 kB
+dist/assets/KaTeX_Typewriter-Regular-D3Ib7_Hf.ttf        27.55 kB
+dist/assets/KaTeX_AMS-Regular-BQhdFMY1.woff2             28.07 kB
+dist/assets/KaTeX_Main-Bold-Jm3AIy58.woff                29.91 kB
+dist/assets/KaTeX_Main-Regular-Dr94JaBh.woff             30.77 kB
+dist/assets/KaTeX_Math-BoldItalic-B3XSjfu4.ttf           31.19 kB
+dist/assets/KaTeX_Math-Italic-flOr_0UB.ttf               31.30 kB
+dist/assets/KaTeX_Main-BoldItalic-DzxPMmG6.ttf           32.96 kB
+dist/assets/KaTeX_AMS-Regular-DMm9YOAa.woff              33.51 kB
+dist/assets/KaTeX_Main-Italic-3WenGoN9.ttf               33.58 kB
+dist/assets/KaTeX_Main-Bold-waoOVXN0.ttf                 51.33 kB
+dist/assets/KaTeX_Main-Regular-ypZvNtVU.ttf              53.58 kB
+dist/assets/KaTeX_AMS-Regular-DRggAlZN.ttf               63.63 kB
+dist/assets/index-BpkFjOF0.css                           72.15 kB │ gzip:  16.17 kB
+dist/assets/index-Cgps_aTc.js                         1,456.92 kB │ gzip: 444.09 kB
+
+[plugin builtin:vite-reporter] 
+(!) Some chunks are larger than 500 kB after minification. Consider:
+- Using dynamic import() to code-split the application
+- Use build.rolldownOptions.output.codeSplitting to improve chunking: https://rolldown.rs/reference/OutputOptions.codeSplitting
+- Adjust chunk size limit for this warning via build.chunkSizeWarningLimit.
+✓ built in 450ms
+--> 98fab9311737
+[2/2] STEP 1/19: FROM ghcr.io/astral-sh/uv:0.11.7-python3.12-trixie-slim
+[2/2] STEP 2/19: ENV UV_COMPILE_BYTECODE=1     UV_LINK_MODE=copy     UV_PYTHON_DOWNLOADS=never     UV_PROJECT_ENVIRONMENT=/app/.venv     LITELLM_LOCAL_MODEL_COST_MAP=True     LANGGRAPH_STRICT_MSGPACK=true
+--> Using cache 28b0280a1bee762efdb5c70e935bb374168e6b17fa2db3fbdd4c2abc3a0b285a
+--> 28b0280a1bee
+[2/2] STEP 3/19: WORKDIR /app
+--> Using cache 28eeae59c133be091981b7f5eba9f4cf435bf1a7202e37475dbcb77cc697d9f1
+--> 28eeae59c133
+[2/2] STEP 4/19: COPY --from=frontend /usr/local/bin/node /usr/local/bin/node
+--> Using cache 01994b0973d50ea3793a3b79e417146e801f08f65c84136882619004fea897f7
+--> 01994b0973d5
+[2/2] STEP 5/19: COPY --from=frontend /usr/local/lib/node_modules/npm /usr/local/lib/node_modules/npm
+--> Using cache 3c4e4b5744597d38d0f0c8dac59dbf06d74c58c7e66973fb0f5db3b71034b53b
+--> 3c4e4b574459
+[2/2] STEP 6/19: RUN ln -s ../lib/node_modules/npm/bin/npm-cli.js /usr/local/bin/npm     && ln -s ../lib/node_modules/npm/bin/npx-cli.js /usr/local/bin/npx
+--> Using cache cb68d8b185d5312d552dd306604068ea266e4a05c0821c705256d688882b5fe9
+--> cb68d8b185d5
+[2/2] STEP 7/19: RUN apt-get update     && apt-get install -y --no-install-recommends fontconfig fonts-wqy-microhei=0.2.0-beta-4     && rm -rf /var/lib/apt/lists/*     && fc-cache -f     && (id -u 1000 >/dev/null 2>&1 || useradd --uid 1000 --no-create-home --shell /usr/sbin/nologin agentexec)     && ln -s /app/.workdata/workspace /workspace
+--> Using cache 7fe8d04538a1fb4d18f008743b780e0eb3bd6c15668df6cc42e063875db9e6c4
+--> 7fe8d04538a1
+[2/2] STEP 8/19: COPY deploy/matplotlibrc /etc/matplotlibrc
+--> Using cache 0f01a5a30fe56da872a8a852c28554116edb2994cded5c30ea012e0b032ca2b4
+--> 0f01a5a30fe5
+[2/2] STEP 9/19: ENV MATPLOTLIBRC=/etc/matplotlibrc
+--> Using cache 3fcd7503606b2b7fd938fcde0dafe20fcdd0e6ec05ae475e84596312bb58e550
+--> 3fcd7503606b
+[2/2] STEP 10/19: COPY pyproject.toml uv.lock .python-version ./
+--> Using cache 0415517d39b8c448a80e1c1a61530a7c4acd3902220627e1612965ea2e2e3b71
+--> 0415517d39b8
+[2/2] STEP 11/19: RUN --mount=type=cache,target=/root/.cache/uv uv sync --locked --no-dev
+--> Using cache 83b74f350e4feb0d45f1bcb4a00d4b78daa9fbe0ad2ff4f7cfd16a70a27c1ca9
+--> 83b74f350e4f
+[2/2] STEP 12/19: COPY agents ./agents
+--> f7c5f97931f8
+[2/2] STEP 13/19: COPY backend ./backend
+--> 53b6df6141c7
+[2/2] STEP 14/19: COPY common ./common
+--> 9ac854087879
+[2/2] STEP 15/19: COPY config ./config
+--> 45e9825ae85b
+[2/2] STEP 16/19: COPY --from=frontend /frontend/dist ./frontend/dist
+--> d25599b5e0a9
+[2/2] STEP 17/19: EXPOSE 8000
+--> 5df1ce0bb839
+[2/2] STEP 18/19: CMD ["sh", "-c", "uv run --no-sync python -m backend.security && uv run --no-sync alembic upgrade head && exec uv run --no-sync uvicorn backend.main:app --host 0.0.0.0 --port 8000 --timeout-graceful-shutdown 3"]
+--> 4281441a899f
+[2/2] STEP 19/19: LABEL "com.docker.compose.image.builder"="classic"
+[2/2] COMMIT docker.io/library/open-personal-agent-backend:latest
+--> 5b8a046cf24d
+Successfully tagged docker.io/library/open-personal-agent-backend:latest
+5b8a046cf24d67193e0d317284d9f018dfb6a815ffcc2b9f1be9b54079ad9d72
+Successfully built 5b8a046cf24d
+Successfully tagged open-personal-agent-backend
+ Image open-personal-agent-backend Built 
+ Image open-personal-agent-backend Built 
+mkdir -p .workdata/shared && { podman compose --env-file .env -f deploy/docker-compose.yml up -d --wait backend || { podman compose --env-file .env -f deploy/docker-compose.yml logs --tail=20 backend; exit 1; }; }
+[4m>>>> Executing external compose provider "/opt/homebrew/bin/docker-compose". Please see podman-compose(1) for how to disable this message. <<<<
+
+[0mtime="2026-10-22T21:39:56+08:00" level=warning msg="No services to build"
+ Container open-personal-agent-postgres-1 Running 
+ Container open-personal-agent-litellm-1 Running 
+ Container open-personal-agent-backend-1 Recreate 
+ Container open-personal-agent-backend-1 Recreated 
+ Container open-personal-agent-postgres-1 Waiting 
+ Container open-personal-agent-postgres-1 Healthy 
+ Container open-personal-agent-postgres-1 Waiting 
+ Container open-personal-agent-litellm-1 Waiting 
+ Container open-personal-agent-postgres-1 Healthy 
+ Container open-personal-agent-litellm-1 Healthy 
+ Container open-personal-agent-backend-1 Starting 
+ Container open-personal-agent-backend-1 Started 
+ Container open-personal-agent-litellm-1 Waiting 
+ Container open-personal-agent-backend-1 Waiting 
+ Container open-personal-agent-postgres-1 Waiting 
+ Container open-personal-agent-litellm-1 Healthy 
+ Container open-personal-agent-postgres-1 Healthy 
+ Container open-personal-agent-backend-1 Healthy 

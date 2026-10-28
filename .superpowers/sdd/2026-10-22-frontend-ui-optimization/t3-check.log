@@ -1,0 +1,131 @@
+uv run ruff format --check .
+198 files already formatted
+uv run ruff check .
+All checks passed!
+uv run mypy .
+Success: no issues found in 190 source files
+uv run lint-imports
+
+╔══╗─────────▶╔╗ ╔╗      ╔╗◀───┐
+╚╣╠╝◀─────┐  ╔╝╚╗║║────▶╔╝╚╗   │
+ ║║   ╔══╦══╦╩╗╔╝║║  ╔╦═╩╗╔╝╔═╦══╗
+ ║║╔══╣╔╗║╔╗║╔╣║ ║║ ╔╬╣╔╗║║ ║│║╔═╝
+╔╣╠╣║║║╚╝║╚╝║║║╚╗║╚═╝║║║║║╚╗║═╣║
+╚══╩╩╩╣╔═╩══╩╝╚═╝╚═══╩╩╝╚╩═╩╩═╩╝
+  └──▶║║                    ▲ 
+      ╚╝────────────────────┘
+
+
+---------
+Contracts
+---------
+
+Analyzed 171 files, 532 dependencies.
+-------------------------------------
+
+单向依赖：backend → agents → config → common KEPT
+backend 只使用 agents 的公开入口 KEPT
+
+Contracts: 2 kept, 0 broken.
+uv run pytest
+============================= test session starts ==============================
+platform darwin -- Python 3.12.12, pytest-9.1.1, pluggy-1.6.0
+rootdir: <项目根目录>
+configfile: pyproject.toml
+testpaths: agents, backend, common, config, deploy
+plugins: langsmith-0.14.7, asyncio-1.4.0, anyio-4.15.1
+asyncio: mode=Mode.AUTO, debug=False, asyncio_default_fixture_loop_scope=session, asyncio_default_test_loop_scope=session
+collected 591 items / 243 deselected / 348 selected
+
+agents/tests/contracts/test_blob_store_contract.py .......               [  2%]
+agents/tests/contracts/test_document_parser_contract.py ......           [  3%]
+agents/tests/contracts/test_embedder_contract.py ......                  [  5%]
+agents/tests/contracts/test_mcp_client_contract.py ..........            [  8%]
+agents/tests/contracts/test_model_gateway_contract.py ...........        [ 11%]
+agents/tests/contracts/test_workspace_contract.py ..............         [ 15%]
+agents/tests/spikes/test_v4_workspace_backend.py .                       [ 15%]
+agents/tests/spikes/test_v5_subagent_namespace.py .                      [ 16%]
+agents/tests/test_approval.py .........                                  [ 18%]
+agents/tests/test_approvals_runtime.py .................                 [ 23%]
+agents/tests/test_attachments.py .....                                   [ 25%]
+agents/tests/test_chunking.py .......                                    [ 27%]
+agents/tests/test_embedding.py .........                                 [ 29%]
+agents/tests/test_estimate.py ..                                         [ 30%]
+agents/tests/test_interruption.py ...                                    [ 31%]
+agents/tests/test_knowledge_runtime.py ...............                   [ 35%]
+agents/tests/test_litellm_proxy.py ...                                   [ 36%]
+agents/tests/test_local_sandbox.py ..............s                       [ 40%]
+agents/tests/test_main_agent.py .................................        [ 50%]
+agents/tests/test_media_types.py .                                       [ 50%]
+agents/tests/test_memory_extraction.py ..........                        [ 53%]
+agents/tests/test_model_cleanup.py ...                                   [ 54%]
+agents/tests/test_quota.py ..............                                [ 58%]
+agents/tests/test_skills.py ...............                              [ 62%]
+agents/tests/test_subagents.py .........                                 [ 64%]
+agents/tests/test_titles.py ........                                     [ 67%]
+agents/tests/test_tracker.py .........                                   [ 69%]
+agents/tests/test_translator.py ..............                           [ 73%]
+agents/tests/test_workspace_files.py .                                   [ 74%]
+backend/tests/test_compaction.py ....                                    [ 75%]
+backend/tests/test_e2e_server.py ...                                     [ 76%]
+backend/tests/test_event_bus.py .....                                    [ 77%]
+backend/tests/test_frontend.py .....                                     [ 79%]
+backend/tests/test_openapi.py .....                                      [ 80%]
+backend/tests/test_preview.py ......                                     [ 82%]
+backend/tests/test_run_control.py ......                                 [ 83%]
+backend/tests/test_seed.py ....                                          [ 85%]
+backend/tests/test_skill_upload.py ...............                       [ 89%]
+common/tests/test_ids.py ..                                              [ 89%]
+config/tests/test_integrations.py .............                          [ 93%]
+config/tests/test_settings.py ....................                       [ 99%]
+deploy/tests/test_compose.py .                                           [ 99%]
+deploy/tests/test_paths.py .                                             [100%]<项目根目录>/.venv/lib/python3.12/site-packages/_pytest/unraisableexception.py:67: PytestUnraisableExceptionWarning: Exception ignored in: <function BaseSubprocessTransport.__del__ at 0x1056db740>
+
+Traceback (most recent call last):
+  File "~/miniforge3/lib/python3.12/asyncio/base_subprocess.py", line 126, in __del__
+    self.close()
+  File "~/miniforge3/lib/python3.12/asyncio/base_subprocess.py", line 104, in close
+    proto.pipe.close()
+  File "~/miniforge3/lib/python3.12/asyncio/unix_events.py", line 568, in close
+    self._close(None)
+  File "~/miniforge3/lib/python3.12/asyncio/unix_events.py", line 592, in _close
+    self._loop.call_soon(self._call_connection_lost, exc)
+  File "~/miniforge3/lib/python3.12/asyncio/base_events.py", line 799, in call_soon
+    self._check_closed()
+  File "~/miniforge3/lib/python3.12/asyncio/base_events.py", line 545, in _check_closed
+    raise RuntimeError('Event loop is closed')
+RuntimeError: Event loop is closed
+
+Enable tracemalloc to get traceback where the object was allocated.
+See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+  warnings.warn(pytest.PytestUnraisableExceptionWarning(msg))
+
+
+=============================== warnings summary ===============================
+agents/tests/test_litellm_proxy.py::test_stalled_stream_is_abandoned_after_idle_timeout
+agents/tests/test_litellm_proxy.py::test_stalled_stream_is_abandoned_after_idle_timeout
+  <项目根目录>/.venv/lib/python3.12/site-packages/pydantic/_internal/_generate_schema.py:1507: UserWarning: Item 'summary' on TypedDict class 'ChatCompletionReasoningItem' is using the `ReadOnly` qualifier. Pydantic will not protect items from any mutation on dictionary instances.
+    warnings.warn(
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+========= 347 passed, 1 skipped, 243 deselected, 2 warnings in 24.22s ==========
+cd frontend && pnpm exec tsc --noEmit && pnpm types:check && pnpm lint && pnpm format && pnpm test
+$ openapi-typescript src/api/generated/openapi.json -o src/api/generated/schema.d.ts --check
+✨ openapi-typescript 7.13.0
+$ eslint .
+$ prettier --check .
+Checking formatting...
+All matched files use Prettier code style!
+$ vitest run
+
+ RUN  v5.0.3 <项目根目录>/frontend
+
+
+ Test Files  39 passed (39)
+      Tests  215 passed (215)
+   Start at  20:07:36
+   Duration  1.09s (import 62%, transform 23%, tests 11%, worker 4%)
+
+    Isolate  39 workers spawned · ~95ms startup each (spawn + environment, per file)
+             at least ~435ms faster with isolate: false — reuses workers across files instead of one per file
+

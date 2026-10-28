@@ -1,0 +1,20 @@
+cd frontend && pnpm exec tsc --noEmit && pnpm types:check && pnpm lint && pnpm format && pnpm test
+$ openapi-typescript src/api/generated/openapi.json -o src/api/generated/schema.d.ts --check
+✨ openapi-typescript 7.13.0
+$ eslint .
+$ prettier --check .
+Checking formatting...
+All matched files use Prettier code style!
+$ vitest run
+
+ RUN  v5.0.3 <项目根目录>/frontend
+
+
+ Test Files  41 passed (41)
+      Tests  231 passed (231)
+   Start at  20:14:52
+   Duration  1.08s (import 60%, transform 25%, tests 11%, worker 4%)
+
+    Isolate  41 workers spawned · ~89ms startup each (spawn + environment, per file)
+             at least ~431ms faster with isolate: false — reuses workers across files instead of one per file
+

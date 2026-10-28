@@ -1,0 +1,41 @@
+podman compose --env-file .env -f deploy/docker-compose.yml --profile test up -d --wait postgres-test
+[4m>>>> Executing external compose provider "/opt/homebrew/bin/docker-compose". Please see podman-compose(1) for how to disable this message. <<<<
+
+[0mtime="2026-10-22T20:58:48+08:00" level=warning msg="No services to build"
+ Container open-personal-agent-postgres-test-1 Running 
+ Container open-personal-agent-postgres-test-1 Waiting 
+ Container open-personal-agent-postgres-test-1 Healthy 
+uv run pytest -m integration
+============================= test session starts ==============================
+platform darwin -- Python 3.12.12, pytest-9.1.1, pluggy-1.6.0
+rootdir: <项目根目录>
+configfile: pyproject.toml
+testpaths: agents, backend, common, config, deploy
+plugins: langsmith-0.14.7, asyncio-1.4.0, anyio-4.15.1
+asyncio: mode=Mode.AUTO, debug=False, asyncio_default_fixture_loop_scope=session, asyncio_default_test_loop_scope=session
+collected 591 items / 357 deselected / 234 selected
+
+agents/tests/contracts/test_knowledge_contract.py ..................     [  7%]
+agents/tests/test_bootstrap.py ..                                        [  8%]
+agents/tests/test_document_library.py ...........                        [ 13%]
+agents/tests/test_document_repo.py ...                                   [ 14%]
+agents/tests/test_pgvector_store.py .                                    [ 14%]
+agents/tests/test_usage_repo.py ........                                 [ 18%]
+agents/tests/test_workspace_files.py .                                   [ 18%]
+backend/tests/test_api.py ..............................                 [ 31%]
+backend/tests/test_app_settings.py .............                         [ 37%]
+backend/tests/test_documents_api.py .......                              [ 40%]
+backend/tests/test_followups.py ........                                 [ 43%]
+backend/tests/test_job_queue.py .......                                  [ 46%]
+backend/tests/test_knowledge_api.py ......                               [ 49%]
+backend/tests/test_manager.py ...............................            [ 62%]
+backend/tests/test_migrations.py ............                            [ 67%]
+backend/tests/test_models_api.py .............                           [ 73%]
+backend/tests/test_repos.py ...........                                  [ 77%]
+backend/tests/test_seed.py ..                                            [ 78%]
+backend/tests/test_settings_api.py .............................         [ 91%]
+backend/tests/test_usage_api.py .....                                    [ 93%]
+backend/tests/test_writer.py ..                                          [ 94%]
+deploy/tests/test_backup_scripts.py ..............                       [100%]
+
+===================== 234 passed, 357 deselected in 59.13s =====================
