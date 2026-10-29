@@ -20,7 +20,7 @@ description: 在 open_personal_agent 项目中开发、修改、审查或重构�
 5. 第三方服务一律进 `deploy/docker-compose.yml`；配置进 `config/`；密钥只在 `.env`。
 6. 直接依赖一律精确版本（`uv add 包==版本`、`pnpm add -E`）。
 7. 中文注释与文档，英文标识符；注释只写"为什么"。
-8. 当前没有 git 仓库：不要执行 git 命令。
+8. 代码在 git 仓库里：只有用户明确要求时才提交，推送由用户自己做。
 
 ## 开发流程
 
