@@ -7,7 +7,7 @@
 前提：Podman（或 Docker）、uv、nvm 安装的 Node 24.21.0 与 pnpm 11.17.0。
 
 ```bash
-cp .env.example .env      # 然后填写 LITELLM_MASTER_KEY（sk- 开头的随机串）、LITELLM_SALT_KEY（随机串，设了以后不能改）与 UPSTREAM_GATEWAY_KEY
+cp .env.example .env      # 然后填写 UPSTREAM_GATEWAY_URL 与 UPSTREAM_GATEWAY_KEY（网关的两个密钥有默认值，可以不填）
 make install              # 严格按锁文件安装 Python 与前端依赖
 ```
 
@@ -20,6 +20,17 @@ make up                   # 一键启动：数据库、模型网关、Ollama、�
 ```
 
 然后打开 http://127.0.0.1:8000 。停止：`make down`（数据保留）。备份：`make backup`。
+
+**新机器上只用 Docker 部署**（克隆下来直接启动，不用装 uv、Node）：
+
+```bash
+git clone <仓库地址> && cd open_personal_agent
+cp .env.example .env      # 填 UPSTREAM_GATEWAY_URL 与 UPSTREAM_GATEWAY_KEY，不填也能起来，只是模型调不通
+mkdir -p .workdata/workspace .workdata/shared
+cd deploy && docker compose up -d
+```
+
+要求 Docker Compose 2.24 及以上。第一次会从源码构建后端镜像（几分钟）并下载约 640MB 的向量模型。注意事项见使用指南第 2 节。
 
 改了东西后：
 

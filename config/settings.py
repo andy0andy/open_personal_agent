@@ -122,6 +122,11 @@ class AgentConfig(BaseModel):
     stream_idle_timeout: float = Field(default=120, gt=0)
 
 
+# 本地网关的默认主密钥（用户决定 2026-11-02）：没写 .env 也能起来；网关只绑本机，用默认值风险小。
+# 与 deploy/docker-compose.yml 里的默认值相同（deploy/tests/test_compose.py 检查）
+DEFAULT_LITELLM_MASTER_KEY = "sk-open-personal-agent-local"
+
+
 class Settings(BaseSettings):
     """全局配置。
 
@@ -134,7 +139,7 @@ class Settings(BaseSettings):
 
     database_url: str
     litellm_base_url: str = "http://127.0.0.1:4000"
-    litellm_master_key: SecretStr
+    litellm_master_key: SecretStr = SecretStr(DEFAULT_LITELLM_MASTER_KEY)
     workdata_dir: Path = ROOT_DIR / ".workdata"
     adapters: AdaptersConfig = AdaptersConfig()
     agent: AgentConfig = AgentConfig()

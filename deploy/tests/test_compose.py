@@ -12,7 +12,7 @@ from typing import Any
 
 import yaml
 
-from config.settings import ModelsConfig
+from config.settings import DEFAULT_LITELLM_MASTER_KEY, ModelsConfig
 
 ROOT = Path(__file__).resolve().parents[2]
 _BACKEND_NEEDS = {"LITELLM_MASTER_KEY"}  # 后端用它调用本地网关
@@ -154,8 +154,21 @@ def test_embedding_download_failure_does_not_stop_backend() -> None:
     assert command.rstrip().endswith("true; }")
 
 
-def test_env_file_is_optional_for_building() -> None:
-    """构建、打包时没有 .env 也能解析 compose 文件（用户决定 2026-10-28）；
-    运行时缺密钥由 ${…:?} 报出。"""
+def test_starts_without_env() -> None:
+    """没有 .env 也能直接 compose up（用户决定 2026-11-02）：网关的两个密钥给默认值，
+    .env 里写了就以它为准；compose 文件里不再有缺了就报错的 ${…:?}。"""
     for name in ("litellm", "backend"):
         assert _services()[name]["env_file"] == [{"path": "../.env", "required": False}]
+    text = (ROOT / "deploy" / "docker-compose.yml").read_text(encoding="utf-8")
+    assert ":?" not in text
+
+
+def test_gateway_keys_have_shared_defaults() -> None:
+    """网关与后端用同一个默认主密钥，宿主机上的工具（Settings）没写 .env 时也是它；
+    加密模型参数的 LITELLM_SALT_KEY 也有默认值（用上以后不能改，D21）。"""
+    services = _services()
+    expected = f"${{LITELLM_MASTER_KEY:-{DEFAULT_LITELLM_MASTER_KEY}}}"
+    assert services["litellm"]["environment"]["LITELLM_MASTER_KEY"] == expected
+    assert services["backend"]["environment"]["LITELLM_MASTER_KEY"] == expected
+    salt = services["litellm"]["environment"]["LITELLM_SALT_KEY"]
+    assert re.fullmatch(r"\$\{LITELLM_SALT_KEY:-[\w-]{16,}\}", salt)

@@ -41,3 +41,11 @@ D21 让管理页面把改动写进 `workdata/config/`，加载时与 `config/` �
 - 设置的一部分在数据库里：直接看文件看不到，要看设置页或查 `app_settings` 表；备份必须带上数据库（本来就带）。
 - 用户删了默认的 MCP 服务、技能后想找回，要自己从 `config/seed/` 复制回 `.workdata/`。
 - 被同意的命令仍然改得动 `.workdata/` 里的配置（D21 第 7 条的风险不变，R33）。
+
+## 修订（2026-11-02，R47）
+
+- 网关的两个密钥给默认值（用户决定）：从仓库克隆下来、没有 `.env` 时 compose 会因为缺 `LITELLM_MASTER_KEY`、`LITELLM_SALT_KEY` 直接报错，而使用者用不到它们。
+  - `deploy/docker-compose.yml` 改成 `${…:-默认值}`，`.env` 里写了就以 `.env` 为准；`config/settings.py` 的 `litellm_master_key` 默认值相同，宿主机上的工具没写 `.env` 也能连网关。
+  - 它们仍然只在环境变量里、不进设置表：用它们的是网关容器自己，网关不读我们的设置表。
+  - 代价：默认值写在公开仓库里，谁都知道。网关只绑本机、备份只在本机，个人使用可以接受；想更稳妥就在 `.env` 里自己设，`LITELLM_SALT_KEY` 要在第一次加模型之前设。
+  - `LITELLM_SALT_KEY` 一旦用上（不管默认值还是自己设的）仍然不能改（D21）。

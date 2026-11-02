@@ -65,7 +65,7 @@ def test_podman_saves_several_images_in_one_archive(tmp_path: Path) -> None:
 
 def test_build_machine_needs_no_env(tmp_path: Path) -> None:
     """构建电脑上不需要 .env（用户决定 2026-10-28：.env 只是本机运行时的环境变量）：
-    compose 用一份空的环境文件解析，必填的密钥给占位值，只影响解析、不进镜像。"""
+    compose 用一份空的环境文件解析，变量都取 compose 文件里的默认值。"""
     (tmp_path / "deploy").mkdir()
     copy = tmp_path / "deploy" / "bundle-images.sh"
     copy.write_text(SCRIPT.read_text(encoding="utf-8"), encoding="utf-8")

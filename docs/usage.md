@@ -7,7 +7,7 @@
 前提：Podman（或 Docker）、uv、nvm 安装的 Node 24.21.0 与 pnpm 11.17.0。
 
 ```bash
-cp .env.example .env      # 然后填写 LITELLM_MASTER_KEY（sk- 开头的随机串）、LITELLM_SALT_KEY（随机串，设了以后不能改）与 UPSTREAM_GATEWAY_KEY
+cp .env.example .env      # 然后填写 UPSTREAM_GATEWAY_URL 与 UPSTREAM_GATEWAY_KEY（网关的两个密钥有默认值，可以不填）
 make install              # 严格按锁文件安装 Python 与前端依赖
 ```
 
@@ -19,6 +19,15 @@ make install              # 严格按锁文件安装 Python 与前端依赖
 podman machine start      # 电脑重启后需要；已在运行会提示 already running
 make up                   # 一键启动：数据库、模型网关、Ollama、后端（含打包好的前端）
 ```
+
+**新机器上从仓库克隆、只用 Docker 部署**（2026-11-02 起没有 `.env` 也能启动）：
+
+1. 前提只要 Docker（Compose 2.24 及以上，旧版不认"`.env` 可以没有"的写法）或 Podman，不用装 uv、Node。
+2. `git clone <仓库地址> && cd open_personal_agent`，然后 `cp .env.example .env`，填上 `UPSTREAM_GATEWAY_URL` 与 `UPSTREAM_GATEWAY_KEY`。不填也能起来，只是模型调不通。
+3. 网关的两个密钥（`LITELLM_MASTER_KEY`、`LITELLM_SALT_KEY`）有默认值，不用管。想自己设的话，`LITELLM_SALT_KEY` 必须在第一次加模型之前设好，之后就不能改了。
+4. `mkdir -p .workdata/workspace .workdata/shared`：Linux 上不先建好，Docker 会以 root 身份自动建出来，之后备份时可能没权限。
+5. `cd deploy && docker compose up -d`：第一次会从源码构建后端镜像（几分钟），并下载约 640MB 的向量模型。
+6. Windows 上克隆时，`deploy/.env` 这个链接可能变成普通文件：把根目录的 `.env` 复制一份到 `deploy/` 覆盖它。
 
 不用 make 也能启动，效果一样：在项目里 `cd deploy && podman compose up -d`（用 Docker 的把 `podman compose` 换成 `docker compose`；在项目根目录则是 `podman compose -f deploy/docker-compose.yml up -d`）。第一次启动会先下载向量模型。`deploy/.env` 是指向根目录 `.env` 的链接，compose 靠它读到 `.env`，不要删。
 
@@ -45,7 +54,7 @@ make up                   # 一键启动：数据库、模型网关、Ollama、�
 
 1. 在构建镜像的电脑上（要有项目文件夹与 Docker 或 Podman，不需要 `.env`）：`make bundle`，或不用 make：`bash deploy/bundle-images.sh`。它构建后端、拉取另外 3 个镜像，存成一个文件 `dist/open-personal-agent-images-<时间>.tar`。目标机器的芯片和这台不同时加上 `PLATFORM=linux/arm64`（Apple 芯片的 Mac）或 `PLATFORM=linux/amd64`（Intel / AMD）。已经有镜像、只想存成文件时加 `SKIP_BUILD=1`（这时 `PLATFORM` 不起作用）。注意：构建电脑自己也跑着这套服务时，按别的芯片打包会把本机同名镜像换掉，打完包本机要用时重新 `make build`。
 2. 在旧机器上 `make backup`。
-3. 拷到新机器：项目文件夹（不用带 `.venv`、`node_modules`、`.workdata`）、`.env`（`LITELLM_SALT_KEY` 必须和旧机器一样）、镜像文件、备份（放进新机器的 `.workdata/backups/`）。
+3. 拷到新机器：项目文件夹（不用带 `.venv`、`node_modules`、`.workdata`）、`.env`（`LITELLM_SALT_KEY` 必须和旧机器一样：旧机器 `.env` 里没写就是默认值，新机器也别写）、镜像文件、备份（放进新机器的 `.workdata/backups/`）。
 4. 新机器上（要有 make；第一次启动会下载向量模型约 640MB，没联网时后端照常起来，知识库要等模型下好）：`podman load -i <镜像文件>`（或 `docker load -i …`）→ `cd deploy && podman compose up -d` → `make restore BACKUP=<备份名>`。
 5. 时区：直接用 compose 启动时按 `.env` 里的 `HOST_TZ`（没写就是 UTC），经 make 启动时按本机系统时区。
 6. Windows 上拷项目文件夹时，`deploy/.env` 这个链接可能丢失或变成普通文件：把根目录的 `.env` 复制一份到 `deploy/`，或启动时加 `--env-file ../.env`。
@@ -164,7 +173,7 @@ make up                   # 一键启动：数据库、模型网关、Ollama、�
   - 手改完在 MCP 页点"重新加载"（技能每次运行都重读）。写错时后端照常启动：设置页、MCP 页显示哪个文件出了什么错，页面上的修改会被拒绝，不会覆盖你的文件。
   - 这三个文件里的 `version: 1` 是文件格式的版本，不用改。以后程序升级改了格式，启动时会自动把旧文件改成新格式：改之前原文件先复制到 `.workdata/config/history/`；写坏的文件不动，改好后下次启动再迁移。
 - **首次启动写入默认内容**：`.workdata` 里缺的默认文件（`files` 服务、默认审批规则、`excel` 技能）与网关里缺的 4 个模型，只写一次（记在 `.workdata/.seeded`），之后你删掉的不会被写回来。想找回删掉的默认项，从 `config/seed/` 复制回去。
-- **模型**：全部在网关的数据库里，在模型页增删改；`config/models.yaml` 只剩网关自身的设置。`.env` 里的 `LITELLM_SALT_KEY` 用来加密这些模型：**设了以后不能改**，改了这些模型就读不出来；恢复备份时也要用同一个值。
+- **模型**：全部在网关的数据库里，在模型页增删改；`config/models.yaml` 只剩网关自身的设置。`LITELLM_SALT_KEY`（`.env` 里没写就用默认值）用来加密这些模型：**用上以后不能改**，改了这些模型就读不出来；恢复备份时也要用同一个值。
 - **共享文件夹**：默认是 `.workdata/shared/`；在 `.env` 里设 `SHARED_DIR=<本机文件夹的绝对路径>` 可以换成你自己的文件夹，改完 `make up`。
 - **安全提示**（D25，2026-10-23 起，修订 D23）：后端只在本机 `127.0.0.1:8000` 上；页面打开时先向后端取一个随机令牌，之后每个请求都带着它，别的网页拿不到令牌，也就调不了本机接口；地址必须是 `127.0.0.1` 或 `localhost`（挡住"DNS 重绑定"）。后端每次重启换一个令牌，页面会自动重取，不用刷新。挡不住的：智能体执行的命令和本地 MCP 服务跟后端在同一个容器里，能直接访问后端。
   - 想用 curl 手工调接口：先 `curl -s http://127.0.0.1:8000/api/session` 拿到 `token`，之后的请求加 `-H "X-Session-Token: <令牌>"`；后端重启后要重取。
@@ -185,7 +194,7 @@ make restore BACKUP=20261016-120000  # 用这份备份恢复（会先问你确�
   - `.workdata/.seeded`：记着启动时已经补写过哪些默认内容。跟着备份走，恢复后删掉的默认技能、模型不会被重新写回来（更早的备份里没有它，恢复时不动现有的）。恢复 2026-10-24 之前做的备份后，如果以前的对话在"内容里提到"里搜不到，删掉 `.workdata/.seeded` 里 `conversation_index` 那一行再 `make restart`，会重新补建会话索引。
 - **哪些不在里面**：
   - `SHARED_DIR` 指向项目外的文件夹时，那个文件夹不在备份里，请自己备份；
-  - `.env` 不在备份里（里面的 `LITELLM_SALT_KEY` 请另外记好，恢复模型要用它）；
+  - `.env` 不在备份里（自己设过 `LITELLM_SALT_KEY` 的话请另外记好，恢复模型要用它；没设过就是默认值）；
   - 项目目录里的代码和 `config/`（网关自己的设置 `config/models.yaml`、默认内容 `config/seed/`；不是上面的 `.workdata/config/`）跟着项目文件走，不在备份里；改过 `config/models.yaml` 的请自己留一份。
 - **第一轮优化（2026-10-19）之前做的备份不能恢复到现在的版本**：`make restore` 会拒绝并说明原因；需要时先用 `open_personal_agent-snapshots/20261019-before-batch2/` 里的整体快照退回旧版本（见快照里的 README.txt）。
 - **恢复前会先检查、再确认**：备份不完整或已损坏时直接拒绝，什么都不动。
@@ -196,7 +205,7 @@ make restore BACKUP=20261016-120000  # 用这份备份恢复（会先问你确�
 
 ## 6. 在网关后台核对每次调用
 
-每次调用模型都带着会话 ID 与运行 ID。打开 http://127.0.0.1:4000/ui ，用户名填 `admin`、密码填 `.env` 里的 `LITELLM_MASTER_KEY`（LiteLLM 的默认登录方式），在日志（Logs）里：
+每次调用模型都带着会话 ID 与运行 ID。打开 http://127.0.0.1:4000/ui ，用户名填 `admin`、密码填 `.env` 里的 `LITELLM_MASTER_KEY`，没写就是默认的 `sk-open-personal-agent-local`（LiteLLM 的默认登录方式），在日志（Logs）里：
 - 按会话（session）筛选：值就是会话 ID；
 - 或按标签 `thread:<会话 ID>`、`run:<运行 ID>` 筛选。
 

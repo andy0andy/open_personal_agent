@@ -39,7 +39,7 @@
    - **价格要写在调用参数里**（`litellm_params.input_cost_per_token` / `output_cost_per_token`）；写在模型信息里会被丢掉。
    - **与自带模型同名时网关不会覆盖，而是两份一起分摊调用**（负载均衡）：后端在调网关前自己拒绝重名。
    - **自带模型（`config/models.yaml`）网关不让改、也不让删**：页面上自带模型只读、标出"自带"，改它们照旧编辑 `config/models.yaml` 后 `make restart-gateway`（用户确认）。这是第 2 条"同名以 workdata 为准"的例外：模型做不到覆盖自带的，页面上新增的模型也不能与自带的同名。
-   - 网关把调用参数加密存进数据库，加密用 `LITELLM_SALT_KEY`（没设时用主密钥）：启用前在 `.env` 设一个固定的 `LITELLM_SALT_KEY`，之后不能改；恢复备份时要用同一个值。
+   - 网关把调用参数加密存进数据库，加密用 `LITELLM_SALT_KEY`（没设时用主密钥）：启用前在 `.env` 设一个固定的 `LITELLM_SALT_KEY`，之后不能改；恢复备份时要用同一个值（2026-11-02 起 compose 里有默认值，`.env` 可以不写，见 D22 修订）。
    - 默认对话模型写进 `workdata/config/app.yaml`。**向量模型只读**（用户决定）：换向量模型要把整个知识库重新向量化（R31）。
 4. **密钥本轮不改**（用户决定）：
    - 新增模型只引用 `.env` 里已有的密钥（写 `os.environ/UPSTREAM_GATEWAY_KEY`，网关调用时替换，验证可用），页面上不填密钥；

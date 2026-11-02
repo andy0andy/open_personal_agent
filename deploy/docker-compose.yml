@@ -23,7 +23,7 @@ services:
   litellm:
     image: ghcr.io/berriai/litellm:v1.105.0
     command: ["--config", "/app/config.yaml", "--port", "4000"]
-    # 没有 .env 时也能解析（构建、打包用不到它）；运行时缺密钥由下面的 ${…:?} 报出
+    # 没有 .env 也能解析、启动（构建、打包用不到它；密钥有默认值）
     env_file:
       - path: ../.env
         required: false
@@ -32,8 +32,11 @@ services:
       LITELLM_LOCAL_MODEL_COST_MAP: "True"
       # 模型页新增的模型存进网关数据库，立即生效、不用重启（D21）；config/models.yaml 里的照旧只读
       STORE_MODEL_IN_DB: "True"
-      # 网关用它加密存进数据库的模型参数：设了以后不能改，恢复备份时要用同一个值（D21）
-      LITELLM_SALT_KEY: ${LITELLM_SALT_KEY:?请在 .env 中设置 LITELLM_SALT_KEY（D21：设了以后不能改）}
+      # 两个密钥都有默认值，没写 .env 也能起来（用户决定 2026-11-02）；网关只绑本机，用默认值风险小。
+      # .env 里写了就以 .env 为准。主密钥与后端的、config/settings.py 里的默认值相同
+      LITELLM_MASTER_KEY: ${LITELLM_MASTER_KEY:-sk-open-personal-agent-local}
+      # 网关用它加密存进数据库的模型参数：一旦用上（模型页加过模型）就不能改，恢复备份时要用同一个值（D21）
+      LITELLM_SALT_KEY: ${LITELLM_SALT_KEY:-open-personal-agent-local-salt}
     volumes:
       - ../config/models.yaml:/app/config.yaml:ro
     ports: ["127.0.0.1:4000:4000"]
@@ -86,7 +89,7 @@ services:
     # MCP 服务要的密钥也在 .env 里设置即可。改了 .env 要 make restart。
     # 智能体执行的命令只拿白名单里的变量（D20）；但本地 MCP 服务以 root 跑在这个容器里，
     # 能读到后端进程的全部环境变量，所以 .env 里给 MCP 用的密钥所有本地 MCP 服务都看得到
-    # 没有 .env 时也能解析（构建、打包用不到它）；运行时缺密钥由下面的 ${…:?} 报出
+    # 没有 .env 也能解析、启动（构建、打包用不到它；密钥有默认值）
     env_file:
       - path: ../.env
         required: false
@@ -94,7 +97,7 @@ services:
       # 这几项按容器内的地址覆盖 .env 里给宿主机用的值
       DATABASE_URL: postgresql://agent:agent@postgres:5432/agent
       LITELLM_BASE_URL: http://litellm:4000
-      LITELLM_MASTER_KEY: ${LITELLM_MASTER_KEY:?请在 .env 中设置 LITELLM_MASTER_KEY}
+      LITELLM_MASTER_KEY: ${LITELLM_MASTER_KEY:-sk-open-personal-agent-local}
       LITELLM_LOCAL_MODEL_COST_MAP: "True"
       LANGGRAPH_STRICT_MSGPACK: "true"
       WORKDATA_DIR: /app/.workdata

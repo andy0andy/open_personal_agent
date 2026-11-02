@@ -11,11 +11,9 @@ set -euo pipefail
 
 root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 # 构建电脑上不需要 .env（.env 只是本机运行时的环境变量）：compose 用一份空的环境文件解析，
-# 两项必填的密钥给占位值——只用来让 compose 文件解析得过去，不进镜像
+# 用不到的变量都取 compose 文件里的默认值
 empty_env="$(mktemp)"
 trap 'rm -f "$empty_env"' EXIT
-export LITELLM_SALT_KEY="${LITELLM_SALT_KEY:-bundle-placeholder}"
-export LITELLM_MASTER_KEY="${LITELLM_MASTER_KEY:-bundle-placeholder}"
 # 与 Makefile 一样用项目里的空 Docker 配置：本机全局配置残留的凭据程序会让构建、拉取失败
 export DOCKER_CONFIG="${DOCKER_CONFIG:-$root/deploy/docker-config}"
 if [ -z "${COMPOSE:-}" ]; then

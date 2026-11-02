@@ -8,6 +8,7 @@ from pydantic_settings import SettingsConfigDict
 
 from config.settings import (
     CONFIG_DIR,
+    DEFAULT_LITELLM_MASTER_KEY,
     SETTING_SPECS,
     Settings,
     env_name,
@@ -26,6 +27,15 @@ def _load(monkeypatch: pytest.MonkeyPatch, stored: dict[str, Any] | None = None)
     monkeypatch.setenv("DATABASE_URL", "postgresql://u:p@h:5432/db")
     monkeypatch.setenv("LITELLM_MASTER_KEY", "sk-test")
     return load_settings(stored or {}, settings_cls=_Isolated)
+
+
+def test_master_key_has_local_default(monkeypatch: pytest.MonkeyPatch) -> None:
+    """没在 .env 写 LITELLM_MASTER_KEY 时用默认值，与 compose 里网关的默认值相同
+    （用户决定 2026-11-02）。"""
+    monkeypatch.setenv("DATABASE_URL", "postgresql://u:p@h:5432/db")
+    monkeypatch.delenv("LITELLM_MASTER_KEY", raising=False)
+    settings = load_settings({}, settings_cls=_Isolated)
+    assert settings.litellm_master_key.get_secret_value() == DEFAULT_LITELLM_MASTER_KEY
 
 
 def test_defaults_match_the_old_app_yaml(monkeypatch: pytest.MonkeyPatch) -> None:

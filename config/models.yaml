@@ -1,6 +1,6 @@
 # LiteLLM 网关自身的设置（D22）。模型全部在网关数据库里：后端首次启动时按 config/seed/models.yaml
 # 导入（经网关的模型管理接口），之后在模型页增删改，不用重启网关。
-# 网关需要 .env 里的 LITELLM_SALT_KEY 加密存进数据库的模型参数：设了以后不能改。
+# 网关用 LITELLM_SALT_KEY（compose 里有默认值，.env 可覆盖）加密存进数据库的模型参数：用上以后不能改。
 # 修改本文件后执行 make restart-gateway 生效。
 model_list: []
 
