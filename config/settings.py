@@ -137,7 +137,8 @@ class Settings(BaseSettings):
         env_file=ROOT_DIR / ".env", env_nested_delimiter="__", extra="ignore"
     )
 
-    database_url: str
+    # 默认连 compose 起的本机数据库（R47：没有 .env 也能跑）；容器里由 compose 改成容器内的地址
+    database_url: str = "postgresql://agent:agent@127.0.0.1:5432/agent"
     litellm_base_url: str = "http://127.0.0.1:4000"
     litellm_master_key: SecretStr = SecretStr(DEFAULT_LITELLM_MASTER_KEY)
     workdata_dir: Path = ROOT_DIR / ".workdata"

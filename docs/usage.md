@@ -24,7 +24,7 @@ make up                   # 一键启动：数据库、模型网关、Ollama、�
 
 1. 前提只要 Docker（Compose 2.24 及以上，旧版不认"`.env` 可以没有"的写法）或 Podman，不用装 uv、Node。
 2. `git clone <仓库地址> && cd open_personal_agent`，然后 `cp .env.example .env`，填上 `UPSTREAM_GATEWAY_URL` 与 `UPSTREAM_GATEWAY_KEY`。不填也能起来，只是模型调不通。
-3. 网关的两个密钥（`LITELLM_MASTER_KEY`、`LITELLM_SALT_KEY`）有默认值，不用管。想自己设的话，`LITELLM_SALT_KEY` 必须在第一次加模型之前设好，之后就不能改了。
+3. 网关的两个密钥（`LITELLM_MASTER_KEY`、`LITELLM_SALT_KEY`）有默认值，不用管。装了 make 的话 `make up` 等命令也一样，不要求先有 `.env`。想自己设的话，`LITELLM_SALT_KEY` 必须在第一次加模型之前设好，之后就不能改了。
 4. `mkdir -p .workdata/workspace .workdata/shared`：Linux 上不先建好，Docker 会以 root 身份自动建出来，之后备份时可能没权限。
 5. `cd deploy && docker compose up -d`：第一次会从源码构建后端镜像（几分钟），并下载约 640MB 的向量模型。
 6. Windows 上克隆时，`deploy/.env` 这个链接可能变成普通文件：把根目录的 `.env` 复制一份到 `deploy/` 覆盖它。

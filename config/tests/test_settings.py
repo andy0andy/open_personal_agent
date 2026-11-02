@@ -38,6 +38,15 @@ def test_master_key_has_local_default(monkeypatch: pytest.MonkeyPatch) -> None:
     assert settings.litellm_master_key.get_secret_value() == DEFAULT_LITELLM_MASTER_KEY
 
 
+def test_database_url_defaults_to_local_compose(monkeypatch: pytest.MonkeyPatch) -> None:
+    """没有 .env 时宿主机上的工具（make migrate、make smoke）连 compose 起的本机数据库
+    （R47）；容器里由 compose 改成容器内的地址。"""
+    monkeypatch.delenv("DATABASE_URL", raising=False)
+    monkeypatch.setenv("LITELLM_MASTER_KEY", "sk-test")
+    settings = load_settings({}, settings_cls=_Isolated)
+    assert settings.database_url == "postgresql://agent:agent@127.0.0.1:5432/agent"
+
+
 def test_defaults_match_the_old_app_yaml(monkeypatch: pytest.MonkeyPatch) -> None:
     """没有存储值时等于原 config/app.yaml 的值（上传上限改为 50，设计 4.5；预算已去掉，D23）。"""
     settings = _load(monkeypatch)

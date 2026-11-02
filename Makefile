@@ -1,11 +1,11 @@
 # 常用命令入口。容器命令自动选择 docker compose 或 podman compose。
 COMPOSE ?= $(shell command -v docker >/dev/null 2>&1 && docker info >/dev/null 2>&1 && echo "docker compose" || echo "podman compose")
-# --env-file：compose 文件中的 ${变量} 取自根目录 .env
-DC := $(COMPOSE) --env-file .env -f deploy/docker-compose.yml
-# 用到 compose 的命令先检查 .env：缺少时 compose 只给出难懂的报错
-# 同时确保工作区目录与共享文件夹（MCP 的 files 服务读写它）存在（compose 自己也会建，留着无害）
-NEED_ENV = @test -f .env || { echo "缺少 .env：先运行 cp .env.example .env（见 README 的首次准备）"; exit 1; }; \
-	mkdir -p .workdata/workspace .workdata/shared
+# --env-file：compose 文件中的 ${变量} 取自根目录 .env。没有 .env 也能跑（R47）：不传这个参数
+# （传了不存在的文件 compose 会报错），变量都取 compose 文件里的默认值
+DC := $(COMPOSE) $(if $(wildcard .env),--env-file .env) -f deploy/docker-compose.yml
+# 用到 compose 的命令先建好工作区目录与共享文件夹（MCP 的 files 服务读写它）：
+# Linux 上不先建，Docker 会以 root 身份建出来，之后备份时可能没权限
+PREPARE_DIRS = @mkdir -p .workdata/workspace .workdata/shared
 # 启动后端；失败时直接显示后端日志里的原因（如数据库迁移失败），不必再去 make logs 里找
 START_BACKEND = { $(DC) up -d --wait backend || { $(DC) logs --tail=20 backend; exit 1; }; }
 # 后端跟着本机的时区（compose 里 backend 的 TZ）：Mac 的 /etc/localtime 指向 …/zoneinfo/Asia/Shanghai；
@@ -61,11 +61,11 @@ test: ## 只跑单元测试（不需要任何容器）
 	uv run pytest
 
 test-up: ## 启动测试专用数据库
-	$(NEED_ENV)
+	$(PREPARE_DIRS)
 	$(DC) --profile test up -d --wait postgres-test
 
 test-down:
-	$(NEED_ENV)
+	$(PREPARE_DIRS)
 	$(DC) --profile test rm -sf postgres-test
 
 test-int: test-up ## 集成测试（连接 postgres-test）
@@ -78,21 +78,21 @@ smoke: ## 先行验证：调用真实模型，会产生少量费用（需先 mak
 	uv run pytest -m live -s agents/tests/live
 
 infra-up: ## 启动数据库、网关、Ollama；向量模型不存在时才下载
-	$(NEED_ENV)
+	$(PREPARE_DIRS)
 	$(DC) up -d --wait postgres litellm ollama
 	$(DC) run --rm ollama-init
 
 up: ## 一键启动全部服务（向量模型不存在时先下载），然后打开 http://127.0.0.1:8000；等同于在 deploy 目录里 podman compose up -d
-	$(NEED_ENV)
+	$(PREPARE_DIRS)
 	$(START_BACKEND)
 
 build: ## 重新构建 backend 镜像并启动：代码、依赖或前端界面改了以后运行（依赖从本机构建缓存安装，不重新下载）
-	$(NEED_ENV)
+	$(PREPARE_DIRS)
 	$(DC) build backend
 	$(START_BACKEND)
 
 restart: ## 改了 .env 后重建后端容器（重读 .env）；用的是镜像里的代码，改了代码要 make build 或换新镜像
-	$(NEED_ENV)
+	$(PREPARE_DIRS)
 	@$(DC) up -d --force-recreate --wait backend || { $(DC) logs --tail=20 backend; exit 1; }
 
 bundle: ## 在构建电脑上打包全部镜像成一个文件（dist/）：PLATFORM=linux/arm64 指定目标机器的芯片，SKIP_BUILD=1 只存不构建
@@ -105,24 +105,24 @@ migrate: ## 在宿主机上对主库执行迁移（一般不需要，backend 启
 	uv run alembic upgrade head
 
 restart-gateway: ## 修改 config/models.yaml 或 .env 后重建网关容器
-	$(NEED_ENV)
+	$(PREPARE_DIRS)
 	$(DC) up -d --force-recreate --wait litellm
 
 logs:
-	$(NEED_ENV)
+	$(PREPARE_DIRS)
 	$(DC) logs -f --tail=100
 
 doctor: ## 体检（只读）：容器、后端、网关、模型、Ollama、数据库、.workdata 文件、磁盘与备份，逐项 ✓ / ✗
-	$(NEED_ENV)
+	$(PREPARE_DIRS)
 	@DC="$(DC)" uv run python deploy/doctor.py
 
 backup: ## 备份对话、知识库与个人文件到 .workdata/backups/（保留最近 7 份）
-	$(NEED_ENV)
+	$(PREPARE_DIRS)
 	$(DC) up -d --wait postgres
 	$(BACKUP_ENV) bash deploy/backup.sh
 
 restore: ## 恢复备份：make restore BACKUP=<名字>（不带名字时列出已有的备份）；恢复前自动备份当前数据
-	$(NEED_ENV)
+	$(PREPARE_DIRS)
 	@if [ -z "$(BACKUP)" ]; then \
 		echo "已有的备份（恢复：make restore BACKUP=<名字>；pre-restore- 开头的是恢复前自动做的）："; \
 		found=; for d in .workdata/backups/*/; do \
@@ -137,5 +137,5 @@ restore: ## 恢复备份：make restore BACKUP=<名字>（不带名字时列出�
 		bash deploy/restore.sh
 
 down: ## 停止所有服务（数据保留在数据卷中）
-	$(NEED_ENV)
+	$(PREPARE_DIRS)
 	$(DC) down

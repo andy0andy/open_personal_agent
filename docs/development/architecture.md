@@ -129,7 +129,7 @@ IMPLEMENTATIONS = [make_foo]          # 新实现加进这个列表，必须跑�
 
 **新增第三方服务**：加进 `deploy/docker-compose.yml`（固定版本、只监听 `127.0.0.1`）→ 确认不经 make、直接 `podman compose up -d` 也能起来（启动顺序写成 `depends_on`）→ 需要时在 `Makefile` 补快捷命令 → 写决策记录。
 
-**启动与镜像**（D27）：后端是镜像模式，代码与打包好的前端都在镜像里（`image: ${BACKEND_IMAGE:-open-personal-agent-backend:latest}`，保留 `build:` 给构建电脑），不挂源码、不自动重载；启动只靠 compose（`deploy/` 里 `podman compose up -d`），Makefile 只是快捷命令。`deploy/.env` 链接到根目录 `.env`，compose 替换 `${变量}` 时读得到；扫描类测试不读它。`deploy/bundle-images.sh`（`make bundle`）把 `compose config --images` 列出的镜像存成一个文件，换机器时加载。没有 `.env` 也能启动：网关的两个密钥在 compose 里有默认值（D22 修订，R47），compose 文件里不用 `${…:?}`。
+**启动与镜像**（D27）：后端是镜像模式，代码与打包好的前端都在镜像里（`image: ${BACKEND_IMAGE:-open-personal-agent-backend:latest}`，保留 `build:` 给构建电脑），不挂源码、不自动重载；启动只靠 compose（`deploy/` 里 `podman compose up -d`），Makefile 只是快捷命令。`deploy/.env` 链接到根目录 `.env`，compose 替换 `${变量}` 时读得到；扫描类测试不读它。`deploy/bundle-images.sh`（`make bundle`）把 `compose config --images` 列出的镜像存成一个文件，换机器时加载。没有 `.env` 也能启动：网关的两个密钥在 compose 里有默认值（D22 修订，R47），compose 文件里不用 `${…:?}`；Makefile 只在有 `.env` 时才传 `--env-file .env`，`Settings` 的 `database_url` 默认是本机 compose 的数据库。
 
 ## 9. 运行、事件与用量（设计文档第 10 节、7.7）
 

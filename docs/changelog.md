@@ -7,6 +7,7 @@
 - 网关的两个密钥有了默认值（用户决定，修订 D22）：`LITELLM_MASTER_KEY` 默认 `sk-open-personal-agent-local`（也是网关后台的登录密码），`LITELLM_SALT_KEY` 也有默认值；`.env` 里写了就以 `.env` 为准。以前没有 `.env` 时 compose 直接报"required variable LITELLM_MASTER_KEY is missing a value"。
 - `.env.example` 里这两行改成注释：只需要填上游网关的地址与密钥。`LITELLM_SALT_KEY` 想自己设的话，要在第一次加模型之前设，用上以后不能改。
 - 打包脚本不再给这两个密钥占位值。
+- make 命令也不再要求先有 `.env`：有 `.env` 时照旧用 `--env-file .env`，没有时不传、变量取默认值；`DATABASE_URL` 有了默认值（compose 起的本机数据库），`make migrate`、`make smoke` 这类在宿主机上跑的命令也不用 `.env`。
 - README 与使用指南补"新机器上只用 Docker 部署"：只要 Docker（Compose 2.24 及以上），第一次会从源码构建后端镜像并下载向量模型。
 - 已有 `.env` 的机器不受影响，但别删 `.env` 里的 `LITELLM_SALT_KEY`：删了就会退回默认值，已加的模型就读不出来了。
 
