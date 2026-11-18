@@ -47,6 +47,7 @@ from agents.main_agent.models import (
 from agents.main_agent.runtime.knowledge import user_words
 from agents.main_agent.workspace import CommandResult
 from common.errors import NotFoundError, UpstreamError
+from common.redact import redact
 from config import McpServerConfig
 
 
@@ -450,6 +451,8 @@ class FakeKnowledgeStore:
         self._broken_recall = broken_recall
 
     async def add(self, new: NewKnowledge) -> KnowledgeItem:
+        if new.kind == "memory":
+            new = new.model_copy(update={"content": redact(new.content)})
         now = datetime.now(UTC)
         item = KnowledgeItem(
             id=uuid4(),
@@ -542,6 +545,8 @@ class FakeKnowledgeStore:
         trusted: bool | None = None,
     ) -> KnowledgeItem:
         item = await self.get(item_id)
+        if content is not None and item.kind == "memory":
+            content = redact(content)
         changes: dict[str, Any] = {"updated_at": datetime.now(UTC)}
         if content is not None and content != item.content:
             changes["content"] = content

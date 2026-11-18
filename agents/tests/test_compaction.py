@@ -20,7 +20,9 @@ from agents.main_agent.runtime.compaction import (
     USER_WORDS_HEADER,
     CompactionMiddleware,
     appendix,
+    boundary,
     count_tokens,
+    early_trigger,
 )
 from agents.main_agent.runtime.knowledge import related_prefix
 from agents.main_agent.workspace import LocalWorkspace
@@ -257,3 +259,125 @@ def test_url_stops_at_fullwidth_paren() -> None:
 
 def _extraction_model(times: int) -> ScriptedChatModel:
     return ScriptedChatModel(responses=[AIMessage('{"changes": []}')] * times)
+
+
+# ---- 交界处提前压缩（R49） ----
+
+
+def _todos(*statuses: str, call_id: str = "t1") -> list[AnyMessage]:
+    """模型更新了一次待办清单，工具结果已回来。"""
+    todos = [{"content": f"第 {i} 步", "status": status} for i, status in enumerate(statuses)]
+    call = {"name": "write_todos", "args": {"todos": todos}, "id": call_id}
+    return [AIMessage("", tool_calls=[call]), ToolMessage("已更新", tool_call_id=call_id)]
+
+
+def test_new_turn_is_a_boundary() -> None:
+    messages: list[AnyMessage] = [HumanMessage("第一句"), AIMessage("好"), HumanMessage("第二句")]
+    assert boundary(messages) == "新一轮开始"
+
+
+def test_interjection_and_old_summary_are_not_a_new_turn() -> None:
+    """插话接在工具结果后面，不是新的一轮；以前的摘要也不是用户新说的话。"""
+    interjected = HumanMessage("等一下", additional_kwargs={"interjection": True})
+    assert boundary([HumanMessage("开始"), AIMessage("好"), interjected]) is None
+    assert boundary([_summary("摘要")]) is None
+
+
+def test_a_newly_completed_todo_is_a_boundary() -> None:
+    first = _todos("in_progress", "pending")
+    assert boundary([HumanMessage("开始"), *first]) is None  # 只是列了清单，没有完成的
+    done = _todos("completed", "in_progress", call_id="t2")
+    assert boundary([HumanMessage("开始"), *first, *done]) == "完成了一项待办"
+    # 完成的没有比上次多（只是改了别的项的状态）：不算
+    same = _todos("completed", "pending", call_id="t3")
+    assert boundary([HumanMessage("开始"), *first, *done, *same]) is None
+
+
+def test_subagent_result_is_a_boundary() -> None:
+    call = {"name": "task", "args": {"description": "调研"}, "id": "s1"}
+    messages: list[AnyMessage] = [
+        HumanMessage("开始"),
+        AIMessage("", tool_calls=[call]),
+        ToolMessage("调研结果", tool_call_id="s1"),
+    ]
+    assert boundary(messages) == "子智能体交回结果"
+
+
+def test_middle_of_a_task_is_not_a_boundary() -> None:
+    call = {"name": "read_file", "args": {"file_path": "/workspace/c_1/a.py"}, "id": "r1"}
+    messages: list[AnyMessage] = [
+        HumanMessage("开始"),
+        AIMessage("", tool_calls=[call]),
+        ToolMessage("文件内容", tool_call_id="r1"),
+    ]
+    assert boundary(messages) is None
+    assert boundary([]) is None
+    # 清单的参数不成样子（模型写坏了）：当作没有完成的，不报错
+    broken = {"name": "write_todos", "args": {"todos": "不是列表"}, "id": "b1"}
+    assert (
+        boundary([AIMessage("", tool_calls=[broken]), ToolMessage("", tool_call_id="b1")]) is None
+    )
+
+
+def _early_middleware(tmp_path: Path) -> CompactionMiddleware:
+    """硬阈值 1000 token、提前阈值 700 token。"""
+    return CompactionMiddleware(
+        ScriptedChatModel(responses=[]),
+        backend=FilesystemBackend(root_dir=tmp_path),
+        trigger=("tokens", 1000),
+        keep=("messages", 2),
+        early=("tokens", 700),
+    )
+
+
+def test_compacts_early_only_at_a_boundary(tmp_path: Path) -> None:
+    """过了提前阈值：在交界处才压缩，做到一半不压；过了硬阈值照旧随时压缩。"""
+    middleware = _early_middleware(tmp_path)
+    new_turn: list[AnyMessage] = [HumanMessage("第一句"), AIMessage("好"), HumanMessage("第二句")]
+    midway: list[AnyMessage] = [HumanMessage("开始"), AIMessage("我先看看")]
+    assert not middleware._should_summarize(new_turn, 699)
+    assert middleware._should_summarize(new_turn, 700)
+    assert not middleware._should_summarize(midway, 999)
+    assert middleware._should_summarize(midway, 1000)
+
+
+def test_no_early_compaction_without_an_early_threshold(tmp_path: Path) -> None:
+    middleware = CompactionMiddleware(
+        ScriptedChatModel(responses=[]),
+        backend=FilesystemBackend(root_dir=tmp_path),
+        trigger=("tokens", 1000),
+    )
+    new_turn: list[AnyMessage] = [HumanMessage("第一句"), AIMessage("好"), HumanMessage("第二句")]
+    assert not middleware._should_summarize(new_turn, 999)
+
+
+def test_early_threshold_follows_the_default_trigger() -> None:
+    """按上下文上限的比例触发时提前到 70%；没拿到上限、按固定 token 数触发时同比例提前。"""
+    assert early_trigger(("fraction", 0.85)) == ("fraction", 0.70)
+    assert early_trigger(("tokens", 170000)) == ("tokens", 140000)
+    assert early_trigger(("messages", 20)) is None
+
+
+async def test_new_turn_past_the_early_threshold_compacts_before_answering(tmp_path: Path) -> None:
+    """接进智能体里走一遍：硬阈值远没到，但已过提前阈值——第二轮一开始就先压缩再回答。"""
+    model = _SummarizingModel(responses=[AIMessage("好")] * 2)
+    middleware = CompactionMiddleware(
+        model,
+        backend=FilesystemBackend(root_dir=tmp_path),
+        trigger=("tokens", 10**9),
+        keep=("messages", 1),
+        early=("tokens", 1),
+    )
+    create: Any = create_agent
+    graph = create(
+        model, middleware=[middleware], context_schema=AgentContext, checkpointer=InMemorySaver()
+    )
+    context = AgentContext(str(uuid.uuid4()), "c_1", str(uuid.uuid4()))
+    config: Any = {"configurable": {"thread_id": "t"}}
+    await graph.ainvoke({"messages": [HumanMessage("第一句")]}, config, context=context)
+    assert model.kinds == ["main"]  # 第一轮只有一条消息，没有可压的
+    await graph.ainvoke({"messages": [HumanMessage("第二句")]}, config, context=context)
+    assert model.kinds == ["main", "summary", "main"]
+    last = [str(m.content) for m in model.received[-1]]
+    assert any("- 第一句" in text for text in last)  # 压掉的那句原话附在摘要后面
+    assert last[-1] == "第二句"

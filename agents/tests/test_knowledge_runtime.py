@@ -104,6 +104,44 @@ async def test_remember_saves_a_memory_and_announces_it(tmp_path: object) -> Non
     assert (saved.item_id, saved.content, saved.pinned) == (str(item.id), "用户对花生过敏", True)
 
 
+FAKE_TOKEN = "github_pat_" + "A1b2C3d4E5" * 4  # 编的，只是格式像
+
+
+async def test_remember_masks_credentials_before_saving(tmp_path: object) -> None:
+    """记忆里不留密钥（R48）：存下来的是打码后的内容，并告诉模型原文没有保存。"""
+    store = FakeKnowledgeStore()
+    model = ScriptedChatModel(
+        responses=[
+            call("remember", {"content": f"用户的 GitHub 令牌是 {FAKE_TOKEN}"}),
+            AIMessage("记住了"),
+        ]
+    )
+    events = await _run(_agent(model, store, tmp_path), "记住我的令牌")
+    [item] = store.items.values()
+    assert item.content == "用户的 GitHub 令牌是 github_pat_***"
+    finished = next(e for e in events if isinstance(e, ToolFinished))
+    assert FAKE_TOKEN not in finished.output
+    assert "密钥已打码" in finished.output
+    saved = next(e for e in events if isinstance(e, MemorySaved))
+    assert saved.content == item.content
+
+
+async def test_update_memory_masks_credentials(tmp_path: object) -> None:
+    store = FakeKnowledgeStore()
+    item = await store.add(NewKnowledge(content="用户的猫叫咪咪", source="manual"))
+    model = ScriptedChatModel(
+        responses=[
+            call("update_memory", {"old": "猫叫咪咪", "new": f"用户的令牌是 {FAKE_TOKEN}"}),
+            AIMessage("好"),
+        ]
+    )
+    events = await _run(_agent(model, store, tmp_path), "改一下")
+    assert store.items[item.id].content == "用户的令牌是 github_pat_***"
+    finished = next(e for e in events if isinstance(e, ToolFinished))
+    assert FAKE_TOKEN not in finished.output
+    assert "密钥已打码" in finished.output
+
+
 def _text(message: BaseMessage) -> str:
     """消息里的文字（内容块形式时拼接文字块）。"""
     if isinstance(message.content, str):

@@ -288,3 +288,24 @@ async def test_extracted_suspicious_memory_is_marked() -> None:
     await _extract(store, model)
     [added] = [item for item in store.items.values() if item.id not in ids.values()]
     assert added.suspicious == "要求忽略之前的指令"
+
+
+async def test_extracted_credentials_are_masked() -> None:
+    """自动提取写入记忆时同样打码（R48）：对话里贴过的密钥不会变成长期记忆。"""
+    store, _ = await _store()
+    token = "ghp_" + "a1B2c3D4e5" * 3 + "f6"  # 编的，只是格式像
+    model = ScriptedChatModel(
+        responses=[
+            _reply(
+                [
+                    {"action": "add", "content": f"用户的 GitHub 令牌是 {token}"},
+                    {"action": "update", "target": 1, "content": f"用户的密钥是 sk-{'a1b2' * 4}"},
+                ]
+            )
+        ]
+    )
+    await _extract(store, model)
+    contents = [item.content for item in store.items.values()]
+    assert "用户的 GitHub 令牌是 ghp_***" in contents
+    assert "用户的密钥是 sk-***" in contents
+    assert not [content for content in contents if token in content]

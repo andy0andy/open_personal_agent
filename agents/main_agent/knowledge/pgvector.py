@@ -26,6 +26,7 @@ from agents.main_agent.models import Embedder, estimate_text_tokens
 from common.db import Pool
 from common.errors import NotFoundError
 from common.ids import new_id
+from common.redact import redact
 
 _COLUMNS = (
     "i.id, i.kind, i.tags, i.pinned, i.content, i.source, i.source_thread_id, i.source_run_id, "
@@ -92,6 +93,8 @@ class PgKnowledgeStore:
         self._embedder = embedder
 
     async def add(self, new: NewKnowledge) -> KnowledgeItem:
+        if new.kind == "memory":  # 记忆里不留密钥（R48）；文档是用户有意存的资料，原样保留
+            new = new.model_copy(update={"content": redact(new.content)})
         [vector] = await self._embedder.embed([new.content])
         item_id = new_id()
         async with self._pool.connection() as conn:
@@ -193,6 +196,8 @@ class PgKnowledgeStore:
         trusted: bool | None = None,
     ) -> KnowledgeItem:
         current = await self.get(item_id)
+        if content is not None and current.kind == "memory":
+            content = redact(content)
         sets: list[str] = ["updated_at = now()"]
         params: list[Any] = []
         # 内容没变就不重新向量化：只改标签、常驻时，向量模型停掉也能改

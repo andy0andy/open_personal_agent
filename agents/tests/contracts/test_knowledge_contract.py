@@ -276,6 +276,34 @@ async def test_document_chunks_are_not_checked(make: Factory, document: Document
     assert chunk.suspicious is None
 
 
+# 记忆脱敏（R48）：样例是编的，只是格式像
+CREDENTIAL = "github_pat_" + "A1b2C3d4E5" * 4
+
+
+async def test_credentials_in_memories_are_masked(make: Factory) -> None:
+    """写入、改内容时把密钥打码：存下来、检索到的都是打码后的内容。"""
+    store = make()
+    added = await store.add(NewKnowledge(content=f"用户的令牌是 {CREDENTIAL}", source="manual"))
+    assert added.content == "用户的令牌是 github_pat_***"
+    assert (await store.get(added.id)).content == added.content
+    changed = await store.update(added.id, content=f"用户换了令牌：{CREDENTIAL}")
+    assert changed.content == "用户换了令牌：github_pat_***"
+    # 改成的内容打码后和原来一样：算没改
+    same = await store.update(added.id, content=f"用户换了令牌：{CREDENTIAL}x")
+    assert same.content == changed.content
+
+
+async def test_credentials_in_document_chunks_are_kept(
+    make: Factory, document: DocumentFactory
+) -> None:
+    """只管记忆：文档是用户有意存的资料（如配置说明），原样保留。"""
+    store = make()
+    [chunk] = await store.add_chunks(
+        await document(store), "部署说明", [Chunk(seq=0, content=f"令牌填 {CREDENTIAL}")]
+    )
+    assert CREDENTIAL in chunk.content
+
+
 async def test_recall_leaves_out_suspicious_memories(make_pg: Factory) -> None:
     store = make_pg()
     flagged = await store.add(

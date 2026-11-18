@@ -92,7 +92,9 @@ def _memory_tools(store: KnowledgeStore, pinned_limit: int) -> list[BaseTool]:
                 f"用户在知识库页确认无害前不会用上：{item.content}"
             )
             return note, item.model_dump(mode="json")
-        return f"已记住：{item.content}", item.model_dump(mode="json")
+        return f"已记住{_masked_note(new.content, item)}：{item.content}", item.model_dump(
+            mode="json"
+        )
 
     @tool(UPDATE_MEMORY_TOOL)
     async def update_memory(old: str, new: str) -> str:
@@ -119,7 +121,7 @@ def _memory_tools(store: KnowledgeStore, pinned_limit: int) -> list[BaseTool]:
                 f"已更正，但内容像是“{updated.suspicious}”，标为可疑："
                 f"用户在知识库页确认无害前不会用上：{updated.content}"
             )
-        return f"已更正：{updated.content}"
+        return f"已更正{_masked_note(content, updated)}：{updated.content}"
 
     @tool(FORGET_MEMORY_TOOL)
     async def forget_memory(fragment: str) -> str:
@@ -368,6 +370,11 @@ async def _one_memory(store: KnowledgeStore, fragment: str) -> KnowledgeItem:
 def _preview(content: str) -> str:
     text = neutralize(content)
     return text if len(text) <= _PREVIEW else f"{text[:_PREVIEW]}……"
+
+
+def _masked_note(asked: str, saved: KnowledgeItem) -> str:
+    """存下来的和要记的不一样，就是其中的密钥被打码了（R48）：告诉模型原文没有保存。"""
+    return "（其中的密钥已打码，原文没有保存）" if saved.content != asked else ""
 
 
 def _uuid(value: str) -> UUID | None:

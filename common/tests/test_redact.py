@@ -45,3 +45,50 @@ def test_ordinary_text_is_left_alone() -> None:
         "密码不对，请重试",
     ):
         assert redact(text, []) == text
+
+
+def test_vendor_token_formats_are_masked() -> None:
+    """各家令牌的固定格式（记忆脱敏，R48）：样例都是编的。"""
+    cases = {
+        "令牌 github_pat_" + "A1b2C3d4E5" * 4: "令牌 github_pat_***",
+        "用 ghp_" + "a1B2c3D4e5" * 3 + "f6 推送": "用 ghp_*** 推送",
+        "AKIA" + "ABCDEFGHIJKLMNOP": "AKIA***",
+        "谷歌的 AIza" + "SyA1b2C3d4E5f6G7h8I9j0K1l2M3n4O5p6": "谷歌的 AIza***",
+        "xoxb-" + "1234567890-abcdefghij": "xoxb-***",
+        "npm_" + "a1B2c3D4e5" * 3: "npm_***",
+        "hf_" + "a1B2c3D4e5" * 3: "hf_***",
+        "sk_live_" + "a1B2c3D4e5f6G7h8": "sk_live_***",
+    }
+    for text, masked in cases.items():
+        assert redact(text, []) == masked
+
+
+def test_private_key_block_is_masked() -> None:
+    block = (
+        "-----BEGIN OPENSSH PRIVATE KEY-----\n"
+        "b3BlbnNzaC1rZXktdjEAAAAABG5vbmUAAAAEbm9uZQ\n"
+        "AAAAB3NzaC1yc2EAAAADAQABAAABAQC7\n"
+        "-----END OPENSSH PRIVATE KEY-----"
+    )
+    assert redact(f"私钥：\n{block}\n别外传", []) == "私钥：\n***\n别外传"
+    # 只贴了前半截（没有结束行）也整段打码
+    half = "-----BEGIN RSA PRIVATE KEY-----\nMIIEowIBAAKCAQEA7\nb3BlbnNzaC1rZXk="
+    assert redact(half, []) == "***"
+
+
+def test_keys_right_after_chinese_are_masked() -> None:
+    """汉字在正则里也算单词字符：紧跟在汉字后面的密钥（中间没有空格）也要认出来。"""
+    assert redact("密钥是sk-abcdefgh12345678", []) == "密钥是sk-***"
+    assert redact("令牌是ghp_" + "a1B2c3D4e5" * 3 + "f6", []) == "令牌是ghp_***"
+
+
+def test_token_like_words_are_left_alone() -> None:
+    for text in (
+        "ghp_ 是 GitHub 令牌的前缀",
+        "AKIA 开头的是 AWS 的访问密钥",
+        "hf_hub_download(repo_id)",
+        "npm_config_registry",
+        "MAKIAVELLIANISM1234567",
+        "-----BEGIN CERTIFICATE-----",
+    ):
+        assert redact(text, []) == text

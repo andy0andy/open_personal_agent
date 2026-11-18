@@ -4,7 +4,9 @@
 在默认做法（用到上下文的 85% 时把较早的对话交给模型写摘要、原文另存成文件）之上：
 - 摘要后面由代码逐字附上这段对话里用户说过的话（不经过模型），再附上文件路径、报错行、网址的
   锚点索引——摘要难免漏掉用户的原始要求和具体的名字；
-- token 用真实的分词器算：默认的"字数 ÷ 4"把中文低估好几倍，压缩来得太晚。
+- token 用真实的分词器算：默认的"字数 ÷ 4"把中文低估好几倍，压缩来得太晚；
+- 交界处提前压缩（R49）：用到 70% 且正处在任务的交界处（新一轮开始、刚完成一项待办、
+  子智能体刚交回结果）就先压缩，免得这一段做到一半撞上 85%——那时压缩最容易丢掉手头的细节。
 """
 
 import re
@@ -16,12 +18,14 @@ from deepagents.middleware.summarization import (
     SummarizationMiddleware,
     compute_summarization_defaults,
 )
+from langchain.agents.middleware.summarization import ContextSize
 from langchain_core.language_models import BaseChatModel
 from langchain_core.messages import AIMessage, AnyMessage, BaseMessage, HumanMessage, ToolMessage
 from langchain_core.utils.function_calling import convert_to_openai_tool
 
 from agents.main_agent.models import estimate_input_tokens
 from agents.main_agent.runtime.content import text_of
+from agents.main_agent.runtime.interjection import is_interjection
 from agents.main_agent.runtime.knowledge import user_words
 
 USER_WORDS_HEADER = "用户说过的原话（逐字，按时间顺序）："
@@ -35,6 +39,12 @@ _WORDS_ITEM_LIMIT = 1000
 _WORDS_TOTAL_LIMIT = 6000
 _ANCHOR_LIMITS = {"文件": 30, "报错": 20, "网址": 20}  # 每组最多几条，超了先丢最早的
 _ANCHOR_LENGTH = 200
+
+# 交界处提前压缩的阈值：占上下文上限的比例（硬阈值是 deepagents 默认的 85%）
+EARLY_FRACTION = 0.70
+_DEFAULT_FRACTION = 0.85
+_TODO_TOOL = "write_todos"
+_SUBAGENT_TOOL = "task"
 
 _URL = re.compile(r"https?://[^\s)>\]\"'，。）】」]+")
 _PATH = re.compile(r"(?:/[\w.\-]+)+\.\w{1,8}|\b[\w\-]+(?:/[\w.\-]+)+\.\w{1,8}")
@@ -52,12 +62,35 @@ def count_tokens(messages: Sequence[BaseMessage], tools: Sequence[Any] | None = 
 
 
 class CompactionMiddleware(SummarizationMiddleware):
-    """deepagents 压缩中间件的同名替身：摘要后附上用户原话与锚点索引。"""
+    """deepagents 压缩中间件的同名替身：摘要后附上用户原话与锚点索引；交界处提前压缩。
+
+    early：提前压缩的阈值（"fraction" 或 "tokens"）；不给就只按 trigger 压缩。
+    """
+
+    def __init__(self, *args: Any, early: ContextSize | None = None, **kwargs: Any) -> None:
+        super().__init__(*args, **kwargs)
+        self._early = early
 
     @property
     def name(self) -> str:
         """与默认的同名：deepagents 按名字把默认的那个原地换掉（不是并存两个）。"""
         return "SummarizationMiddleware"
+
+    def _should_summarize(self, messages: list[AnyMessage], total_tokens: int) -> bool:
+        if super()._should_summarize(messages, total_tokens):
+            return True
+        limit = self._early_limit()
+        return limit is not None and total_tokens >= limit and boundary(messages) is not None
+
+    def _early_limit(self) -> int | None:
+        """提前压缩的 token 数；没设、或按比例算却还不知道模型的上下文上限时为 None。"""
+        if self._early is None:
+            return None
+        kind, value = self._early
+        if kind == "tokens":
+            return int(value)
+        max_input_tokens = self._get_profile_limits()
+        return None if max_input_tokens is None else int(max_input_tokens * value)
 
     async def _acreate_summary(self, messages_to_summarize: list[AnyMessage]) -> str:
         summary = await super()._acreate_summary(messages_to_summarize)
@@ -72,12 +105,79 @@ def compaction_middleware(model: BaseChatModel, backend: BackendProtocol) -> Com
         model,
         backend=backend,
         trigger=defaults["trigger"],
+        early=early_trigger(defaults["trigger"]),
         keep=defaults["keep"],
         # deepagents 调用它时还会传 tools（它自己的类型标注只写了消息）
         token_counter=cast(Any, count_tokens),
         trim_tokens_to_summarize=None,
         truncate_args_settings=defaults["truncate_args_settings"],
     )
+
+
+def early_trigger(trigger: ContextSize) -> ContextSize | None:
+    """由硬阈值推出提前压缩的阈值：按比例触发时取 70%；没拿到上下文上限、按固定 token 数触发时
+    同比例提前；按消息条数触发的不提前。"""
+    kind, value = trigger
+    if kind == "fraction":
+        return ("fraction", min(EARLY_FRACTION, value))
+    if kind == "tokens":
+        return ("tokens", round(value * EARLY_FRACTION / _DEFAULT_FRACTION))
+    return None
+
+
+def boundary(messages: Sequence[AnyMessage]) -> str | None:
+    """现在是不是任务的交界处：是的话返回哪一种，做到一半返回 None。
+
+    - 新一轮开始：最后一条是用户新发的消息（插话接在工具结果后面，不算；以前的摘要也不算）；
+    - 完成了一项待办：模型刚更新了待办清单，完成的项比上一次更新时多；
+    - 子智能体交回结果：模型刚派出去的子智能体回来了。
+    """
+    if not messages:
+        return None
+    last = messages[-1]
+    if isinstance(last, HumanMessage):
+        ordinary = not is_interjection(last) and not _is_summary(last)
+        return "新一轮开始" if ordinary else None
+    calls = _answered_calls(messages)
+    if any(call["name"] == _SUBAGENT_TOOL for call in calls):
+        return "子智能体交回结果"
+    done = [_completed(call) for call in calls if call["name"] == _TODO_TOOL]
+    if done and max(done) > _completed_before(messages):
+        return "完成了一项待办"
+    return None
+
+
+def _is_summary(message: AnyMessage) -> bool:
+    return message.additional_kwargs.get("lc_source") == "summarization"
+
+
+def _answered_calls(messages: Sequence[AnyMessage]) -> list[Any]:
+    """最后一次模型调用发起、结果都已回来的工具调用；最后不是一批工具结果时为空。"""
+    position = len(messages) - 1
+    while position >= 0 and isinstance(messages[position], ToolMessage):
+        position -= 1
+    asked = messages[position] if position >= 0 else None
+    if position == len(messages) - 1 or not isinstance(asked, AIMessage):
+        return []
+    return list(asked.tool_calls)
+
+
+def _completed(call: Any) -> int:
+    """一次待办清单更新里已完成的项数；参数不成样子（模型写坏了）时算 0。"""
+    todos = call["args"].get("todos") if isinstance(call["args"], dict) else None
+    if not isinstance(todos, list):
+        return 0
+    return sum(1 for todo in todos if isinstance(todo, dict) and todo.get("status") == "completed")
+
+
+def _completed_before(messages: Sequence[AnyMessage]) -> int:
+    """上一次更新待办清单时已完成的项数（最后一次模型调用之前）；没更新过为 0。"""
+    asked = [message for message in messages if isinstance(message, AIMessage)][:-1]
+    for message in reversed(asked):
+        done = [_completed(call) for call in message.tool_calls if call["name"] == _TODO_TOOL]
+        if done:
+            return max(done)
+    return 0
 
 
 def appendix(messages: Sequence[AnyMessage]) -> str:
