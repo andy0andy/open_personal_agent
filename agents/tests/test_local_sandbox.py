@@ -268,11 +268,98 @@ async def test_commands_get_landlock_when_switching_user(
     text = " ".join(str(arg) for arg in args)
     assert args[:4] == ("setpriv", "--reuid=1000", "--regid=1000", "--clear-groups")
     assert "--landlock-access" in args
-    session = (tmp_path / "workspace").resolve() / SESSION
-    home = (tmp_path / "workspace").resolve().parent / "cache" / "exec-home"
-    for allowed in (session, home, Path("/tmp"), Path("/dev")):
-        assert f"path-beneath:{WRITE_RIGHTS}:{allowed}" in text
+    # 只保护代码（D29）：整个数据目录都能写（会话、技能、配置、装的包都在里面），
+    # 放行的只有它和 /tmp、/dev，程序代码所在的目录不在其中
+    workdata = (tmp_path / "workspace").resolve().parent
+    rules = [str(arg) for arg in args if str(arg).startswith("path-beneath:")]
+    assert rules == [
+        f"path-beneath:{WRITE_RIGHTS}:{allowed}"
+        for allowed in (workdata, Path("/tmp"), Path("/dev"))
+    ]
+    assert text.count("--landlock-rule") == 3
     assert args.index("bash") > args.index("--landlock-access")
+
+
+async def test_pip_installs_into_a_separate_directory(tmp_path: Path) -> None:
+    """装的包进单独的目录（D29）：只对执行的命令生效，后端自己的 Python 环境不动。
+
+    用 --prefix 的装法（PIP_PREFIX），不用 --target：后者遇到目录里已有的同名文件夹就整个跳过，
+    第二个带命令行工具的包、同一命名空间下的第二个包会装不全（审查发现，实测过）。
+    --prefix 要配"不看已装的包"：否则 pip 想先卸掉后端环境里的旧版本，那是 root 的，卸不动。"""
+    result = await _sandbox(tmp_path).run(SESSION, "env", time_limit=None)
+    packages = (tmp_path / "workspace").resolve().parent / "cache" / "exec-packages"
+    version = f"python{sys.version_info.major}.{sys.version_info.minor}"
+    env = dict(line.split("=", 1) for line in result.output.splitlines() if "=" in line)
+    assert env["PIP_PREFIX"] == str(packages)
+    assert env["PIP_IGNORE_INSTALLED"] == "1"
+    assert "PIP_TARGET" not in env
+    assert env["PYTHONPATH"] == str(packages / "lib" / version / "site-packages")
+    assert env["PIP_DISABLE_PIP_VERSION_CHECK"] == "1"
+    paths = env["PATH"].split(":")
+    assert paths[0] == str(Path(sys.executable).parent)  # 命令里的 python 仍是智能体自己的
+    assert paths[1] == str(packages / "bin")  # 装的包带的命令行工具
+    assert packages.is_dir()
+
+
+async def test_installed_packages_are_importable(tmp_path: Path) -> None:
+    version = f"python{sys.version_info.major}.{sys.version_info.minor}"
+    site = tmp_path / "cache" / "exec-packages" / "lib" / version / "site-packages"
+    site.mkdir(parents=True)
+    (site / "opa_extra.py").write_text("VALUE = 42\n", encoding="utf-8")
+    result = await _sandbox(tmp_path).run(
+        SESSION, "python -c 'import opa_extra; print(opa_extra.VALUE)'", time_limit=None
+    )
+    assert result.output.strip() == "42"
+
+
+def _wheel(directory: Path, name: str) -> Path:
+    """手工做一个最小的包：ns 命名空间下的一个模块，加一个命令行工具。"""
+    import zipfile
+
+    info = f"{name}-1.0.dist-info"
+    wheel = directory / f"{name}-1.0-py3-none-any.whl"
+    with zipfile.ZipFile(wheel, "w") as archive:
+        archive.writestr(f"ns/{name}.py", f"NAME = '{name}'\n")
+        archive.writestr(f"{info}/METADATA", f"Metadata-Version: 2.1\nName: {name}\nVersion: 1.0\n")
+        archive.writestr(
+            f"{info}/WHEEL",
+            "Wheel-Version: 1.0\nGenerator: t\nRoot-Is-Purelib: true\nTag: py3-none-any\n",
+        )
+        archive.writestr(
+            f"{info}/entry_points.txt", f"[console_scripts]\n{name}-cli = ns.{name}:main\n"
+        )
+        archive.writestr(f"{info}/RECORD", "")
+    return wheel
+
+
+async def test_packages_installed_one_after_another_all_work(tmp_path: Path) -> None:
+    """真的用 pip 先后装两个包（离线，手工做的包）：同一命名空间下的两个模块都能导入，
+    两个命令行工具都在。"""
+    wheels = tmp_path / "wheels"
+    wheels.mkdir()
+    first, second = _wheel(wheels, "alpha"), _wheel(wheels, "beta")
+    sandbox = _sandbox(tmp_path)
+    for wheel in (first, second):
+        done = await sandbox.run(
+            SESSION, f"python -m pip install --quiet --no-index --no-deps {wheel}", time_limit=None
+        )
+        assert done.exit_code == 0, done.output
+    result = await sandbox.run(
+        SESSION,
+        "python -c 'import ns.alpha, ns.beta; print(ns.alpha.NAME, ns.beta.NAME)'"
+        " && command -v alpha-cli beta-cli | wc -l",
+        time_limit=None,
+    )
+    assert result.output.split() == ["alpha", "beta", "2"], result.output
+
+
+async def test_pip_mirror_is_passed_to_commands(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """网络慢时在 .env 里设 PIP_INDEX_URL 换镜像站：要传给命令，pip 才用得上。"""
+    monkeypatch.setenv("PIP_INDEX_URL", "https://mirror.example/simple")
+    result = await _sandbox(tmp_path).run(SESSION, "env", time_limit=None)
+    assert "PIP_INDEX_URL=https://mirror.example/simple" in result.output
 
 
 async def test_landlock_probe_runs_without_backend_secrets(

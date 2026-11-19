@@ -119,6 +119,7 @@ describe("审批卡片的标题", () => {
 
   it("执行命令", () => {
     expect(approvalTitle(action("execute", { command: "ls" }))).toBe("要执行这条命令吗？");
+    expect(approvalTitle(action("install_skill", { path: "a.zip" }))).toBe("要安装技能吗？");
   });
 
   it("外部工具写出服务与工具名", () => {

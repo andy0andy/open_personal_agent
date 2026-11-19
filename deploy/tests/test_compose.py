@@ -84,11 +84,19 @@ def test_image_cmd_only_runs_existing_modules() -> None:
     assert [name for name in modules if importlib.util.find_spec(name) is None] == []
 
 
-def test_system_python_has_no_pip() -> None:
-    """镜像去掉系统 Python 的 pip（积压小问题 D15，修订 D20）：命令里装不了包，模型一次就明白。
-
-    后端用的是虚拟环境，用不到系统的 pip。"""
+def test_only_the_shared_environment_has_pip() -> None:
+    """命令里的 pip 是后端虚拟环境里的那个（D29：项目依赖里锁了版本），装到单独的目录；
+    系统 Python 自带的 pip 去掉，免得有两个 pip、装到两处。"""
     assert "python -m pip uninstall -y pip" in _dockerfile()
+    pyproject = (ROOT / "pyproject.toml").read_text(encoding="utf-8")
+    assert re.search(r'^\s+"pip==[\d.]+",$', pyproject, re.MULTILINE)
+
+
+def test_image_has_basic_tools() -> None:
+    """镜像里带基础工具（D29）：智能体下载、解包技能和资料要用；CA 证书是 https 要的。"""
+    [install] = re.findall(r"apt-get install -y --no-install-recommends ([^&]+)&&", _dockerfile())
+    packages = set(install.replace("\\", " ").split())
+    assert {"git", "curl", "wget", "unzip", "zip", "jq", "ca-certificates"} <= packages
 
 
 def _environment_names(service: dict[str, Any]) -> set[str]:

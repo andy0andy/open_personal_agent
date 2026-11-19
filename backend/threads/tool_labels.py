@@ -22,6 +22,7 @@ _BUILTIN: dict[str, tuple[str, str | None]] = {
     "update_memory": ("更正记忆", "new"),
     "forget_memory": ("忘掉记忆", "fragment"),
     "search_conversations": ("查以前的对话", "query"),
+    "install_skill": ("安装技能", "path"),  # 对话里装技能（D29）
 }
 # MCP 服务的工具名是"服务名_工具名"（服务名只含小写字母、数字、连字符）
 _EXTERNAL = re.compile(r"^([a-z0-9-]+)_(.+)$")

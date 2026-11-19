@@ -769,10 +769,12 @@ async def test_builtin_tool_names_match_the_agent() -> None:
         model, mcp=mcp, knowledge=FakeKnowledgeStore(), conversations=FakeConversationIndex()
     )
     await _run_once(agent)
-    assert sorted(model.bound) == sorted([*BUILTIN_TOOLS, "demo_add_note"])
+    # 这个智能体没有技能目录：装技能的工具不给（有技能目录时的情况在 test_skill_install.py）
+    expected = [name for name in BUILTIN_TOOLS if name != "install_skill"]
+    assert sorted(model.bound) == sorted([*expected, "demo_add_note"])
     approvals = {row.name: row.action for row in agent.tool_approvals()}
     assert approvals["demo_add_note"] == "ask"
-    assert set(approvals) == {*BUILTIN_TOOLS, "demo_add_note"}
+    assert set(approvals) == {*expected, "demo_add_note"}
 
 
 async def test_failing_mcp_tool_in_subagent_becomes_error_result() -> None:
@@ -1081,6 +1083,18 @@ async def test_subagents_cannot_write_memories() -> None:
     assert writes <= set(main)
     assert not writes & set(sub)
     assert {"demo_list_notes", "search_knowledge", "read_document"} <= set(sub)
+
+
+async def test_subagents_cannot_install_skills() -> None:
+    """装技能只给主智能体（D29）：技能装上后对以后所有会话生效，子智能体不该替用户做这个决定。"""
+    model = _BindSpy(
+        responses=[_task("查一下"), AIMessage(content="查好了"), AIMessage(content="好")]
+    )
+    await _run_once(_agent(model, skills_dir=Path(tempfile.mkdtemp())))
+    main = next(names for names in model.binds if "task" in names)
+    sub = next(names for names in model.binds if "task" not in names)
+    assert "install_skill" in main
+    assert "install_skill" not in sub
 
 
 async def test_long_subagent_report_is_saved_to_reports() -> None:

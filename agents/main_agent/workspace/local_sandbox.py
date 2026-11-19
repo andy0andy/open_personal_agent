@@ -6,10 +6,13 @@
 - 标准输出、标准错误分开读，按到达先后拼成给智能体的输出，标准错误另存一份给界面；
   输出超过上限时留开头 40% 与结尾 60%，完整内容写进会话目录的 logs/，并告诉智能体去哪里读；
 - 只传白名单里的环境变量（不传网关密钥、数据库地址等），HOME 指向单独的目录；
-- 智能体以 root 运行时（后端容器里就是）改用 uid 1000 执行，并加上进程数限制；
-  同时用 Landlock 只放行写本会话目录、命令自己的缓存目录、/tmp、/dev（设计 2026-10-23 5.1）：
-  .workdata 里的配置、技能、别的会话都写不了（读不受限）；内核或容器不支持时不加，只提示一次；
+- 只保护程序代码（D29，用户 2026-11-19 决定）：智能体以 root 运行时（后端容器里就是）改用
+  uid 1000 执行，并加上进程数限制，代码和后端的 Python 环境属于 root、改不动；同时用 Landlock
+  只放行写数据目录（.workdata：会话、技能、配置、装的包都在里面）、/tmp、/dev，读不受限；
+  内核或容器不支持时不加，只提示一次；
 - 与智能体共用同一个 Python 环境（用户选定）：PATH 最前面是智能体自己的 Python 所在目录；
+- 能装包（D29）：pip 装到数据目录里单独的 cache/exec-packages/（PIP_PREFIX），只有执行的命令
+  看得到（PYTHONPATH），后端自己的环境不变；装坏了删掉这个目录就恢复；
 - 智能体看到的路径是 /workspace/<会话短 ID>/…，输出里的真实路径换回这个写法。
 """
 
@@ -56,7 +59,8 @@ _UNKNOWN_EXIT = -1  # 杀掉后没等到退出
 # 256 起几百个线程的 Python 就不够（积压小问题 D13，2026-10-26 提到 1024）
 _MAX_PROCESSES = 1024
 # 传给命令的环境变量：其余（密钥、数据库地址等）一律不传
-_PASSED_ENV = ("LANG", "LC_ALL", "LC_CTYPE", "TZ", "TERM", "MATPLOTLIBRC")
+# PIP_INDEX_URL：网络慢时用户在 .env 里换的镜像站，pip 要用得上（D29）
+_PASSED_ENV = ("LANG", "LC_ALL", "LC_CTYPE", "TZ", "TERM", "MATPLOTLIBRC", "PIP_INDEX_URL")
 
 
 # Landlock 里写类的权限（setpriv 的写法）：只限制这些，读与执行不受限。refer（跨目录改名、
@@ -113,7 +117,9 @@ class LocalSandbox:
         self._real_root_bytes = re.compile(
             re.escape(str(self._workspace).encode()) + rb"(?![\w.-])"
         )
-        self._home = self._workspace.parent / "cache" / "exec-home"
+        self._workdata = self._workspace.parent  # 数据目录：工作区、技能、配置都在它下面
+        self._home = self._workdata / "cache" / "exec-home"
+        self._packages = self._workdata / "cache" / "exec-packages"  # 命令里 pip 装的包（D29）
         self._landlock = landlock
         self._default_timeout = default_timeout
         self._max_timeout = max_timeout
@@ -129,14 +135,14 @@ class LocalSandbox:
                 output=f"执行被拒绝：超时时间须在 1～{self._max_timeout} 秒之间", exit_code=2
             )
         cwd = self._workspace / session
-        await asyncio.to_thread(_make_open_dirs, cwd, self._home)
+        await asyncio.to_thread(_make_open_dirs, cwd, self._home, self._packages)
         identity = exec_identity(euid=os.geteuid())
         writable: list[Path] = []
         if identity is not None:
             if self._landlock is None:
                 self._landlock = await self._probe_landlock(identity)
             if self._landlock:
-                writable = [cwd, self._home, Path("/tmp"), Path("/dev")]
+                writable = [self._workdata, Path("/tmp"), Path("/dev")]  # 代码目录不在其中
         mark = uuid.uuid4().hex  # 认出脱离了进程组的后代（reaper.py）
         process = await asyncio.create_subprocess_exec(
             *_as_user(identity, writable),
@@ -209,7 +215,7 @@ class LocalSandbox:
         except OSError:
             supported = False
         if not supported:
-            logger.warning("Landlock 用不了：命令照常执行，但能写 .workdata 里的配置（见 D25）")
+            logger.warning("Landlock 用不了：命令照常执行，程序代码只靠文件权限保护（见 D29）")
         return supported
 
     def _limits(self, identity: tuple[int, int] | None) -> str:
@@ -222,8 +228,17 @@ class LocalSandbox:
     def _environment(self) -> dict[str, str]:
         env = {name: os.environ[name] for name in _PASSED_ENV if name in os.environ}
         python_dir = str(Path(sys.executable).parent)
-        env["PATH"] = f"{python_dir}:/usr/local/bin:/usr/bin:/bin"
+        env["PATH"] = f"{python_dir}:{self._packages / 'bin'}:/usr/local/bin:/usr/bin:/bin"
         env["HOME"] = str(self._home)
+        # pip 装到单独的目录，命令里的 python 从这里找得到；后端进程没有这些变量，不受影响。
+        # 用 --prefix 的装法，不用 --target：后者遇到目录里已有的同名文件夹（bin/、同一命名空间）
+        # 就整个跳过，后装的包装不全。配上"不看已装的包"：不然 pip 会想先卸掉后端环境里的旧版本，
+        # 那是 root 的，卸不动
+        env["PIP_PREFIX"] = str(self._packages)
+        env["PIP_IGNORE_INSTALLED"] = "1"
+        version = f"python{sys.version_info.major}.{sys.version_info.minor}"
+        env["PYTHONPATH"] = str(self._packages / "lib" / version / "site-packages")
+        env["PIP_DISABLE_PIP_VERSION_CHECK"] = "1"
         env["MPLBACKEND"] = "Agg"  # 只画到文件，不开窗口
         env["PYTHONUNBUFFERED"] = "1"
         return env

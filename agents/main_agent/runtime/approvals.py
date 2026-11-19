@@ -19,7 +19,7 @@ from langchain_core.messages import AIMessage, SystemMessage, ToolCall, ToolMess
 from langgraph.runtime import Runtime
 from langgraph.types import Command
 
-from agents.main_agent.integrations import ToolApproval
+from agents.main_agent.integrations import INSTALL_SKILL, ToolApproval
 from agents.main_agent.runtime.danger import danger_reason
 from agents.main_agent.runtime.events import ApprovalAnswer, ToolDecision
 from agents.main_agent.runtime.interjection import turn_start
@@ -27,7 +27,8 @@ from common.errors import ConflictError, InvalidRequestError
 
 logger = logging.getLogger(__name__)
 
-# 智能体自带的工具：deepagents 的文件、执行、子智能体工具，待办清单，加上知识库、会话索引的工具
+# 智能体自带的工具：deepagents 的文件、执行、子智能体工具，待办清单，加上知识库、会话索引、
+# 装技能的工具
 BUILTIN_TOOLS: tuple[str, ...] = (
     "ls",
     "read_file",
@@ -45,13 +46,23 @@ BUILTIN_TOOLS: tuple[str, ...] = (
     "update_memory",
     "forget_memory",
     "search_conversations",
+    INSTALL_SKILL,
 )
 KNOWLEDGE_TOOLS = frozenset(
     {"search_knowledge", "read_document", "remember", "update_memory", "forget_memory"}
 )
 # 有副作用的内置工具（D26）：失败的那一轮调过它们就不能"重试这一轮"（会再做一遍），只能"继续"
 SIDE_EFFECT_TOOLS = frozenset(
-    {"write_file", "edit_file", "delete", "execute", "remember", "update_memory", "forget_memory"}
+    {
+        "write_file",
+        "edit_file",
+        "delete",
+        "execute",
+        "remember",
+        "update_memory",
+        "forget_memory",
+        INSTALL_SKILL,
+    }
 )
 _REASON_LIMIT = 200
 _LABELS = {"approve": "同意", "edit": "修改后执行", "reject": "拒绝"}

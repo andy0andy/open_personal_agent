@@ -117,3 +117,16 @@ describe("查以前的对话单独算一类（积压小问题 B8）", () => {
     );
   });
 });
+
+describe("对话里装技能（D29）", () => {
+  it("工具行写“安装技能”，摘要是技能包的路径", () => {
+    expect(toolLabel("install_skill", { path: "caveman.zip" })).toEqual({
+      verb: "安装技能",
+      detail: "caveman.zip",
+      kind: "skill",
+    });
+  });
+  it("合计里写“装了 N 个技能”", () => {
+    expect(summarizeTools(["install_skill"])).toBe("装了 1 个技能");
+  });
+});

@@ -204,7 +204,13 @@ class SkillCatalog:
                     raise InvalidRequestError(f"文件路径不合法：{relative}")
                 target.parent.mkdir(parents=True, exist_ok=True)
                 target.write_bytes(data)
-            staging.rename(self.skills_dir / package.name)
+            try:
+                staging.rename(self.skills_dir / package.name)
+            except OSError as exc:
+                # 两处同时装同名技能：上面检查时还没有，改名时已经被另一处装好了
+                if (self.skills_dir / package.name).exists():
+                    raise ConflictError(f"已有同名技能：{package.name}") from exc
+                raise
         except BaseException:
             shutil.rmtree(staging, ignore_errors=True)
             raise

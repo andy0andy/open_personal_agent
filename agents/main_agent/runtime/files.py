@@ -47,7 +47,7 @@ def build_file_tree(
 
 
 class ReadOnlyFilesystem(FilesystemBackend):
-    """只读目录（技能文件只在技能页上增删，智能体不能改）。"""
+    """只读目录（技能在技能页上增删，或由 install_skill 检查后装入；文件工具不能直接改）。"""
 
     def __init__(self, root: Path) -> None:
         super().__init__(root_dir=root, virtual_mode=True)
@@ -173,3 +173,23 @@ Usage:
 - Before overwriting an existing file, read its latest version with read_file first; otherwise the write is refused with "先用 read_file 读最新版再改".
 - Prefer to edit existing files (with the edit_file tool) over creating new ones when possible.
 """  # noqa: E501 - 与 deepagents 原文同样的写法，一行一条
+
+# execute 的说明（D29）：deepagents 原文写的是"在隔离的沙箱里执行"，而这里的命令和智能体在同一个
+# 环境里、能联网（D20）；照原文模型会不试就说"沙箱不能联网"（2026-11-19 实际发生过）。
+# 用法几条沿用 deepagents 原文
+EXECUTE_DESCRIPTION = """Executes a shell command (bash) in the session's working directory and returns combined stdout/stderr with the exit code (truncated if very large).
+
+Environment (commands run in the same container as the agent itself; it is not isolated):
+- Has network access. git, curl, wget, unzip, zip and jq are installed.
+- Python 3 with pandas, numpy, matplotlib and more. A missing package can be installed with `pip install <name>`; it goes to a separate directory that all sessions share and it persists.
+- No root: system packages cannot be installed (no apt), and you cannot modify the agent's own program code.
+- Try before you conclude: do not claim a limitation (e.g. "no network") you have not tested, and when a command fails report the real error.
+
+Usage:
+- Quote paths containing spaces (e.g. cd "/path/with spaces").
+- Chain commands with ';' or '&&' (use '&&' when a command depends on the previous); do not use newlines except inside quoted strings.
+- Use absolute paths and avoid `cd` so the working directory stays stable; use the optional timeout to override the default.
+- Prefer the glob and grep tools over find/grep commands, and read_file over cat/head/tail.
+"""  # noqa: E501 - 与 deepagents 原文同样的写法，一行一条
+
+EXECUTE_COMMAND_DESCRIPTION = "Shell command (bash) to run in the session's working directory."

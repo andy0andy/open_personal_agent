@@ -34,6 +34,7 @@ from agents.main_agent.runtime.events import (
     UsageTotals,
     UserInterjected,
 )
+from agents.main_agent.runtime.skill_package import MAX_SKILL_FILES, parse_skill_package, too_big
 from agents.main_agent.runtime.skills import (
     SkillCatalog,
     SkillDetail,
@@ -48,6 +49,7 @@ from agents.main_agent.runtime.titles import clean_title
 __all__ = [
     "BUILTIN_TOOLS",
     "EVENT_ADAPTER",
+    "MAX_SKILL_FILES",
     "ApprovalAction",
     "ApprovalAnswer",
     "ApprovalRequest",
@@ -85,6 +87,8 @@ __all__ = [
     "clean_title",
     "is_safe_relative",
     "list_skills",
+    "parse_skill_package",
     "read_front_matter",
+    "too_big",
     "user_content",
 ]

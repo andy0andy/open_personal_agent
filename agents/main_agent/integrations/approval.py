@@ -1,6 +1,7 @@
 """工具审批规则判定（设计文档 7.5）：每个工具"自动执行"还是"先问你"。
 
-先看会话的审批权限（D23）："跳过所有审批"一律自动；"只问执行命令"只有执行命令先问。
+先看会话的审批权限（D23）："跳过所有审批"一律自动；"只问执行命令"只有执行命令先问
+（装技能跟着执行命令走，D29）。
 "每次先问"（默认）按顺序：规则文件里第一条匹配的为准（支持 * 通配）→ 没写到的内置工具
 自动执行 → 没写到的 MCP 工具，服务声明只读的自动执行，其余按 mcp_default。
 """
@@ -16,6 +17,10 @@ from config import ApprovalRulesConfig
 from config.integrations import ApprovalMode
 
 EXECUTE_ALWAYS_ASKS = "执行命令每次先问（固定，D21）"
+# 装技能跟着执行命令走（D29）：技能装上后对以后所有会话生效，前两档都先问
+INSTALL_SKILL = "install_skill"
+INSTALL_SKILL_ASKS = "装技能和执行命令一样先问（固定，D29）"
+INSTALL_SKILL_NOTE = "装上后以后所有会话都能用；可以在技能页停用、删除"  # 确认卡上的说明
 
 # 会话的审批权限（D23）：每次先问 / 只问执行命令 / 跳过所有审批
 PermissionMode = Literal["ask", "ask_execute", "skip"]
@@ -44,6 +49,7 @@ class ApprovalPolicy:
         mode: PermissionMode = "ask",
     ) -> ToolApproval:
         is_execute = name == "execute" and server is None
+        is_install = name == INSTALL_SKILL and server is None
         if mode == "skip":
             return ToolApproval(
                 name=name,
@@ -52,6 +58,8 @@ class ApprovalPolicy:
                 reason="本会话跳过所有审批",
                 read_only=read_only,
             )
+        if is_install:  # 前两档都先问，规则放宽不了
+            return ToolApproval(name=name, server=None, action="ask", reason=INSTALL_SKILL_ASKS)
         if mode == "ask_execute":
             if is_execute:
                 return ToolApproval(

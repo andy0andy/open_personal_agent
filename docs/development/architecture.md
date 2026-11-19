@@ -192,7 +192,8 @@ POST /threads/{id}/runs → RunManager.start：建运行记录，交给运行控
 |---|---|
 | `agents/main_agent/workspace/base.py` | 替换点：`Workspace`（文件后端、列出产物、读文件、删除会话目录）与 `Sandbox`（执行命令）；契约测试在 `agents/tests/contracts/test_workspace_contract.py` |
 | `agents/main_agent/workspace/local.py` | 本地实现：deepagents 本地文件后端加上"只能访问本会话目录"的限制与执行命令能力 |
-| `agents/main_agent/workspace/local_sandbox.py` | 执行命令：会话目录里用 bash 运行，进程组、超时、停止、环境变量白名单、root 时改用 uid 1000 并加 Landlock 写入限制（D25，含跨目录改名、硬链接的 `refer`）；标准输出与错误输出分开收，太长时给模型开头 40% 与结尾 60%、完整输出写日志；真实退出码（超时 124） |
+| `agents/main_agent/runtime/skill_package.py`、`skill_install.py` | 技能包的检查（技能页上传与对话里装技能共用）；`install_skill` 工具：从会话目录读 `.zip` 或 `SKILL.md`，检查后装进技能目录，审批跟着执行命令走，子智能体不给（D29） |
+| `agents/main_agent/workspace/local_sandbox.py` | 执行命令：会话目录里用 bash 运行，进程组、超时、停止、环境变量白名单、root 时改用 uid 1000 并加 Landlock 写入限制（D25、D29：放行整个数据目录、`/tmp`、`/dev`，只保护程序代码；含跨目录改名、硬链接的 `refer`）；pip 装到 `cache/exec-packages/`（`PIP_PREFIX` + `PYTHONPATH`，D29）；标准输出与错误输出分开收，太长时给模型开头 40% 与结尾 60%、完整输出写日志；真实退出码（超时 124） |
 | `agents/main_agent/workspace/reaper.py` | 停止或超时时补杀脱离进程组的后代进程：运行中每 0.5 秒记下后代（进程号 + 启动时间），两次脱离的靠命令环境里的随机标记从 `/proc` 找（以 uid 1000 扫描） |
 | `agents/main_agent/runtime/execute.py` | `ExecuteResultMiddleware`：经 `COMMAND_RESULTS` 上下文槽位把退出码、错误输出、是否超时并进工具结果的附加信息，翻译器写进 `tool.finished` |
 | `agents/main_agent/runtime/tool_running.py` | `ToolRunningMiddleware`：工具真正开始执行（审批之后）时经自定义流推 `tool.running`（流模式含 `custom`），界面从这时算用时 |
@@ -203,11 +204,11 @@ POST /threads/{id}/runs → RunManager.start：建运行记录，交给运行控
 | `backend/files/preview.py` | 表格预览：CSV / Excel 的前若干行，单元格一律转成文字 |
 | `frontend/src/features/files/` | 右侧文件面板与各类预览（`kind.ts` 按类型选择预览方式） |
 | `frontend/src/features/chat/uploads.ts` | 输入框上方待发送的文件（上传中、完成、失败） |
-| `deploy/backend.Dockerfile`、`deploy/matplotlibrc` | 执行命令用到的环境：中文字体与 matplotlib 配置、uid 1000 的普通用户、`/workspace` 指向工作区；预装的数据处理库就是项目依赖（与智能体共用一个 Python 环境）；去掉了系统 Python 的 pip（命令里装不了包，D20 修订） |
+| `deploy/backend.Dockerfile`、`deploy/matplotlibrc` | 执行命令用到的环境：中文字体与 matplotlib 配置、uid 1000 的普通用户、`/workspace` 指向工作区；预装的数据处理库就是项目依赖（与智能体共用一个 Python 环境）；基础工具 git、curl、wget、unzip、zip、jq（D29）；去掉了系统 Python 的 pip，命令里用的是项目依赖里锁定版本的 pip（D29） |
 | `agents/subagents/` | 子智能体定义（每个一个 `.md`，开头 YAML 写名称与说明，正文是提示词；不写 `model` 时跟随主对话所选模型） |
 
 约定：
-1. **会话隔离**：会话短 ID 从运行上下文（`AgentContext`）取得，子智能体继承同一上下文。文件工具越界时抛 `PermissionError`——deepagents 只把 `OSError` / `RuntimeError` 转成工具错误，抛别的异常会让整次运行失败。覆盖、修改已有文件前要读过最新版（按读时的修改时间与大小判断，记录在内存里，）。**执行的命令只限写入**（D25）：以 uid 1000 运行时 Landlock 只放行本会话目录、`cache/exec-home`、`/tmp`、`/dev` 的写入；读不限、能上网（D20 的代价），所以默认执行前先问用户。内核不支持 Landlock 时只记警告、不加限制。后端容器里 `.workdata/backups` 用空的只读目录 `deploy/empty-dir` 遮住（podman 的 tmpfs 默认会把底下的内容复制进去，不能用）。读过记录按调用方分开（主智能体为空串，子智能体为它的检查点命名空间去掉最后一段，`workspace/local.py` 的 `current_caller`），主智能体读过、子智能体改过之后要先重读（积压小问题 D16）。
+1. **会话隔离**：会话短 ID 从运行上下文（`AgentContext`）取得，子智能体继承同一上下文。文件工具越界时抛 `PermissionError`——deepagents 只把 `OSError` / `RuntimeError` 转成工具错误，抛别的异常会让整次运行失败。覆盖、修改已有文件前要读过最新版（按读时的修改时间与大小判断，记录在内存里，）。**执行的命令只限写入**（D25，范围按 D29）：以 uid 1000 运行时 Landlock 只放行数据目录（`.workdata`）、`/tmp`、`/dev` 的写入，程序代码不在其中；读不限、能上网（D20 的代价），所以默认执行前先问用户。内核不支持 Landlock 时只记警告、不加限制。后端容器里 `.workdata/backups` 用空的只读目录 `deploy/empty-dir` 遮住（podman 的 tmpfs 默认会把底下的内容复制进去，不能用）。读过记录按调用方分开（主智能体为空串，子智能体为它的检查点命名空间去掉最后一段，`workspace/local.py` 的 `current_caller`），主智能体读过、子智能体改过之后要先重读（积压小问题 D16）。
 2. **目录权限**：每次运行开始时由 backend 建好会话目录与 `outputs/`（`Workspace.prepare`），新建的目录权限放开为 0777——backend 在容器里是 root、执行命令用 uid 1000；Mac 上的 podman 共享目录不区分 uid，换到 Linux 原生 Docker 时命令改不了 backend 写的文件。
 3. **后端容器的 1 号进程是 init**（compose 的 `init: true`）：负责回收停止或超时时被杀掉的孙进程，否则僵尸进程会一直累积。命令只拿到白名单里的环境变量（不含网关密钥、数据库地址），`HOME` 是 `.workdata/cache/exec-home`；PATH 最前面是智能体自己的 Python。智能体看到的路径是 `/workspace/<会话短 ID>/`：镜像里 `/workspace` 是指向工作区的链接，命令输出里的真实路径换回这个写法。
 4. **停止**：运行被停止时，执行命令的协程被取消，随即杀掉整个进程组（`start_new_session`），再按 `reaper.py` 补杀脱离进程组的后代（命令正常结束时还有后代占着输出也补杀，积压小问题 D14）。超时同样处理；时限默认 `workspace.command_timeout`（120 秒），智能体最多能要 `max_command_timeout`（600 秒）。
@@ -313,7 +314,7 @@ MCP 页、技能页 → /api/settings/*（MCP 服务、审批规则、技能；�
 | `agents/main_agent/integrations/mcp.py`、`mcp_adapters.py` | 替换点：MCP 客户端（`McpClient`）与 langchain-mcp-adapters 实现；契约测试 `test_mcp_client_contract.py`，测试用服务 `agents/tests/fixtures/mcp/demo_server.py`（环境变量开关：记启动、拒绝启动、多一个工具）。每个服务一个守护任务：每 30 秒 ping，断开后 `reconnecting` 按 1、2、4、8、16 秒重试，还不行 `failed`、之后每 5 分钟再试；交出的是稳定的代理工具（拦截器转给当前会话，断开时返回 `MCP_DISCONNECTED` 提示）；工具清单变了经 `on_tools_changed` 通知 |
 | `agents/main_agent/integrations/approval.py` | `ApprovalPolicy`：在某个会话权限档位（`PermissionMode`：ask / ask_execute / skip）下，每个工具"自动执行"还是"先问你"，带原因 |
 | `agents/main_agent/runtime/approvals.py` | `interrupt_on` 组装（硬底线：任何档位危险命令都问）、同名替换的审批中间件 `ApprovalMiddleware`（中文的拒绝说法，`edit_notice=None`）、恢复答复的校验与转换 |
-| `agents/main_agent/runtime/danger.py` | 硬底线的判断 `danger_reason`：引号外换行当分隔，shlex 切词后逐段看命令名与参数（`cd` 进 .workdata 之后的写操作、`bash -c` 里的命令也算）；"下载后直接执行"看整条命令 |
+| `agents/main_agent/runtime/danger.py` | 硬底线的判断 `danger_reason`：引号外换行当分隔，shlex 切词后逐段看命令名与参数（`cd` 进 .workdata 之后的写操作、跟着 `cd` 推出删改的目标出了本会话目录（D29）、`bash -c` 里的命令也算）；"下载后直接执行"看整条命令 |
 | `agents/main_agent/runtime/mcp_calls.py` | `McpCallMiddleware`：MCP 工具出错转成工具结果、按（运行，服务）数连续失败（`McpBreaker`，3 次暂停 60 秒，主智能体一份）、服务返回的内容加"外部资料"前缀并转义尖括号 |
 | `agents/main_agent/runtime/subagent_reports.py` | `SubagentReportMiddleware`：子智能体交回超过 4000 字时全文存进会话目录 `reports/`，只交回开头与路径 |
 | `agents/main_agent/runtime/interruption.py` | 被打断的一轮补上中断说明；停止、卡住、额度用完、调用出错时已输出的部分连同原因写进存档（D23） |

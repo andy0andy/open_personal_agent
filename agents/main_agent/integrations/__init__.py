@@ -2,6 +2,8 @@
 
 from agents.main_agent.integrations.approval import (
     EXECUTE_ALWAYS_ASKS,
+    INSTALL_SKILL,
+    INSTALL_SKILL_NOTE,
     ApprovalPolicy,
     PermissionMode,
     ToolApproval,
@@ -17,6 +19,8 @@ from agents.main_agent.integrations.mcp_adapters import McpAdaptersClient
 
 __all__ = [
     "EXECUTE_ALWAYS_ASKS",
+    "INSTALL_SKILL",
+    "INSTALL_SKILL_NOTE",
     "MCP_DISCONNECTED",
     "ApprovalPolicy",
     "McpAdaptersClient",

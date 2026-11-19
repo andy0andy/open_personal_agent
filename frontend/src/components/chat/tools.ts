@@ -9,6 +9,7 @@ export type ToolKind =
   | "memory"
   | "memory_change"
   | "todos"
+  | "skill"
   | "external"
   | "other";
 
@@ -39,6 +40,8 @@ const BUILTIN: Record<string, { verb: string; arg: string | null; kind: ToolKind
   update_memory: { verb: "更正记忆", arg: "new", kind: "memory_change" },
   forget_memory: { verb: "忘掉记忆", arg: "fragment", kind: "memory_change" },
   search_conversations: { verb: "查以前的对话", arg: "query", kind: "conversations" },
+  // 对话里装技能（D29）：要排在这里，否则会被当成"服务名_工具名"的外部工具
+  install_skill: { verb: "安装技能", arg: "path", kind: "skill" },
 };
 
 // MCP 服务的工具名是"服务名_工具名"（服务名只含小写字母、数字、连字符）
@@ -73,6 +76,7 @@ const SUMMARY: Record<ToolKind, (count: number) => string> = {
   memory: (n) => `记下了 ${n} 条记忆`,
   memory_change: (n) => `更正或忘掉了 ${n} 条记忆`,
   todos: () => "更新了待办",
+  skill: (n) => `装了 ${n} 个技能`,
   external: (n) => `调用了 ${n} 次外部工具`,
   other: (n) => `调用了 ${n} 个工具`,
 };

@@ -90,3 +90,61 @@ def test_long_commands_are_checked_quickly() -> None:
 def test_unbalanced_quotes_fall_back_to_plain_split() -> None:
     assert danger_reason("rm -rf / 'oops") == "删除根目录或家目录"
     assert danger_reason("echo 'unfinished") is None
+
+
+# ---- 本会话目录之外的数据（D29）----
+# 写入限制放到整个数据目录以后，命令能删改别的会话、技能、配置。模型看到的路径是
+# /workspace/<会话>/，写出来的多半是 ../ 这类，不带 .workdata 几个字：按"出了本会话目录"判断
+
+OUTSIDE = "删除或改写本会话目录之外的数据"
+
+
+@pytest.mark.parametrize(
+    "command",
+    [
+        "rm -rf ../c_0000aaaa",
+        "rm -rf ../*",
+        "rm -rf ../../skills",
+        "cd ../.. && rm -rf config",
+        "rm -rf /workspace/../config",
+        "rm -rf /workspace",
+        "rm -rf /workspace/",
+        "rm -rf /workspace/*",
+        "echo x > ../../config/approval_rules.yaml",
+        "echo x >> ../c_0000aaaa/notes.md",
+        "find /workspace -mindepth 1 -delete",
+        "find .. -name '*.md' -exec rm {} +",
+        "cd sub && rm -rf ../../other",
+        "cd /workspace && rm -rf c_0000aaaa",
+        "mv ../c_0000aaaa/a.txt .",
+        "cp a.txt ../../config/mcp_servers.yaml",
+        "sed -i s/ask/auto/ ../../config/approval_rules.yaml",
+        "bash -c 'rm -rf ../*'",
+    ],
+)
+def test_changes_outside_the_session_are_recognised(command: str) -> None:
+    assert danger_reason(command) == OUTSIDE
+
+
+@pytest.mark.parametrize(
+    "command",
+    [
+        "rm -rf build",
+        "rm -rf ./*",
+        "cd sub && rm -rf ../dist",  # 回到会话目录里，没出去
+        "cd a/b && mv ../../x.txt ../y.txt",
+        "rm -rf /workspace/c_12345678/tmp",
+        "cd /workspace/c_12345678/skill && zip -r ../skill.zip .",
+        "cd caveman/skills/caveman && zip -r ../../../caveman.zip .",
+        "find . -name '*.pyc' -delete",
+        "find .. -name '*.md'",  # 只是找，不删
+        "cat ../c_0000aaaa/notes.md",
+        "ls ../..",
+        "cp ../c_0000aaaa/a.txt .",  # 从别处拷进来：改的是本会话
+        "echo x > out.txt",
+        "cd /tmp && rm -rf ../tmp/x",
+        "git clone https://github.com/a/b ../b",  # 不在改写类命令里
+    ],
+)
+def test_changes_inside_the_session_are_not_dangerous(command: str) -> None:
+    assert danger_reason(command) is None

@@ -13,6 +13,7 @@ import {
   Hourglass,
   ListTodo,
   LoaderCircle,
+  PackagePlus,
   Plug,
   ShieldQuestion,
   Terminal,
@@ -38,6 +39,7 @@ const KIND_ICONS: Record<ToolKind, LucideIcon> = {
   memory: BookmarkPlus,
   memory_change: Bookmark,
   todos: ListTodo,
+  skill: PackagePlus,
   external: Plug,
   other: Wrench,
 };

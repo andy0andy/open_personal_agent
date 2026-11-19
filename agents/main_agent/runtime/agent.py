@@ -21,10 +21,13 @@ from langchain_core.tools import BaseTool
 from langgraph.checkpoint.base import BaseCheckpointSaver
 from langgraph.graph.state import CompiledStateGraph
 from langgraph.types import Command
+from pydantic import BaseModel, Field, create_model
 
 from agents.main_agent.context import AgentContext
 from agents.main_agent.conversations import ConversationIndex
 from agents.main_agent.integrations import (
+    INSTALL_SKILL,
+    INSTALL_SKILL_NOTE,
     ApprovalPolicy,
     McpClient,
     McpProbeResult,
@@ -76,6 +79,8 @@ from agents.main_agent.runtime.events import (
 )
 from agents.main_agent.runtime.execute import ExecuteResultMiddleware
 from agents.main_agent.runtime.files import (
+    EXECUTE_COMMAND_DESCRIPTION,
+    EXECUTE_DESCRIPTION,
     SKILLS_ROOT,
     WRITE_FILE_DESCRIPTION,
     WorkDirectoryMiddleware,
@@ -101,6 +106,7 @@ from agents.main_agent.runtime.knowledge import (
     with_related,
 )
 from agents.main_agent.runtime.mcp_calls import McpBreaker, McpCallMiddleware
+from agents.main_agent.runtime.skill_install import skill_tools
 from agents.main_agent.runtime.skills import SkillCatalog, SkillInfo
 from agents.main_agent.runtime.subagent_reports import SubagentReportMiddleware
 from agents.main_agent.runtime.subagents import SubagentDefinition, load_subagents
@@ -154,8 +160,10 @@ class MainAgent:
         mcp: McpClient | None = None,
         approval: ApprovalRulesConfig | None = None,
         conversations: ConversationIndex | None = None,
+        max_upload_bytes: int = 50 * 1024 * 1024,  # 对话里装技能时技能包的大小上限（D29）
     ) -> None:
         self.models = gateway
+        self._max_upload_bytes = max_upload_bytes
         self.workspace = workspace
         self.conversations = conversations  # 会话索引（设计 2026-10-23 6.1），后端收尾时写入
         self.knowledge = knowledge
@@ -714,12 +722,16 @@ class MainAgent:
                 else []
             ),
             *(conversation_tools(self.conversations) if self.conversations else []),
+            *self._skill_tools(),
             *(t.tool for t in mcp_tools),
         ]
         # 子智能体收权（设计 2026-10-23 5.10、6.6）：不能记、改、删记忆，其余工具照给
-        sub_tools = [t for t in tools if t.name not in MEMORY_WRITE_TOOLS]
+        # 装技能同样不给：技能装上后对以后所有会话生效，只由主智能体按用户的话来做（D29）
+        sub_tools = [t for t in tools if t.name not in MEMORY_WRITE_TOOLS | {INSTALL_SKILL}]
         asks = [row for row in self.tool_approvals(mode) if row.action == "ask"]
-        descriptions = {t.name: t.description for t in mcp_tools}
+        descriptions = {t.name: t.description for t in mcp_tools} | {
+            INSTALL_SKILL: INSTALL_SKILL_NOTE
+        }
         approval = interrupt_on(asks, descriptions, hard_floor=mode == "skip")
         if approval:  # 同名替换 deepagents 默认的审批中间件：拒绝时用中文的说法（设计 5.3）
             middleware.append(ApprovalMiddleware(interrupt_on=approval))
@@ -756,7 +768,17 @@ class MainAgent:
             for name in BUILTIN_TOOLS
             if (self.knowledge is not None or name not in KNOWLEDGE_TOOLS)
             and (self.conversations is not None or name != SEARCH_CONVERSATIONS)
+            and (self._can_install_skills() or name != INSTALL_SKILL)
         ]
+
+    def _can_install_skills(self) -> bool:
+        return self._skills is not None and self._skills.skills_dir is not None
+
+    def _skill_tools(self) -> list[BaseTool]:
+        """对话里装技能（D29）：有技能目录时才给。"""
+        if self._skills is None or not self._can_install_skills():
+            return []
+        return skill_tools(self._skills, self.workspace, self._max_upload_bytes)
 
     def _can_see(self, model: str) -> bool:
         """模型能否看图（来自网关的模型信息；不知道时按不能处理）。"""
@@ -845,10 +867,25 @@ class MainAgent:
 
 
 def _filesystem(backend: BackendProtocol) -> FilesystemMiddleware:
-    """deepagents 的文件工具中间件（同名替换默认的），只换 write_file 的说明。"""
-    return FilesystemMiddleware(
-        backend=backend, custom_tool_descriptions={"write_file": WRITE_FILE_DESCRIPTION}
+    """deepagents 的文件工具中间件（同名替换默认的），换掉 write_file、execute 的说明。"""
+    middleware = FilesystemMiddleware(
+        backend=backend,
+        custom_tool_descriptions={
+            "write_file": WRITE_FILE_DESCRIPTION,
+            "execute": EXECUTE_DESCRIPTION,
+        },
     )
+    for item in middleware.tools:
+        schema = item.args_schema
+        if item.name == "execute" and isinstance(schema, type) and issubclass(schema, BaseModel):
+            # 参数的说明换不了（只能换工具的说明），而原文也写着"sandbox"：继承原来的参数定义，
+            # 只改 command 这一项的说明（D29）
+            item.args_schema = create_model(
+                schema.__name__,
+                __base__=schema,
+                command=(str, Field(description=EXECUTE_COMMAND_DESCRIPTION)),
+            )
+    return middleware
 
 
 def _services_prompt(tools: Sequence[McpTool], statuses: Sequence[McpServerStatus]) -> str:

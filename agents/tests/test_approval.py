@@ -110,3 +110,17 @@ def test_ask_mode_keeps_rules_and_execute_lock() -> None:
     execute = policy.decide("execute", server=None, read_only=None, mode="ask")
     assert (execute.action, execute.reason) == ("ask", EXECUTE_ALWAYS_ASKS)
     assert policy.decide("memo_add", server="memo", read_only=False, mode="ask").action == "auto"
+
+
+def test_install_skill_follows_execute() -> None:
+    """装技能跟着执行命令走（D29，用户 2026-11-19 决定）：前两档先问、规则放宽不了，
+    "跳过所有审批"时直接装。MCP 服务里同名的工具不算。"""
+    policy = ApprovalPolicy(ApprovalRulesConfig(tools={"*": "auto"}))
+    ask = policy.decide("install_skill", server=None, read_only=None, mode="ask")
+    assert (ask.action, ask.reason) == ("ask", "装技能和执行命令一样先问（固定，D29）")
+    only = policy.decide("install_skill", server=None, read_only=None, mode="ask_execute")
+    assert (only.action, only.reason) == ("ask", "装技能和执行命令一样先问（固定，D29）")
+    skip = policy.decide("install_skill", server=None, read_only=None, mode="skip")
+    assert skip.action == "auto"
+    other = policy.decide("install_skill", server="memo", read_only=False, mode="ask")
+    assert other.action == "auto"

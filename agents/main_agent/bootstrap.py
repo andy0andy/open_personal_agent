@@ -170,4 +170,5 @@ async def build_agent(settings: Settings, pool: Pool) -> MainAgent:
         documents=documents,
         mcp=_MCP_CLIENTS[settings.adapters.mcp_client](settings),
         conversations=PgConversationIndex(pool),
+        max_upload_bytes=settings.max_upload_mb * 1024 * 1024,
     )

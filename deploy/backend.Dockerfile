@@ -31,17 +31,19 @@ RUN ln -s ../lib/node_modules/npm/bin/npm-cli.js /usr/local/bin/npm \
 # 智能体执行的命令也在这个容器里跑（D20）：
 # - 中文字体（文泉驿微米黑，约 5MB）与 matplotlib 配置：图表里的中文不会显示成方框；
 # - 执行命令用的普通用户 uid 1000（后端是 root，命令改用它执行：改不动项目的 Python 环境与代码）；
-# - /workspace 指向工作区目录：智能体看到的路径与真实路径一致，脚本里写的绝对路径照样能用
+# - /workspace 指向工作区目录：智能体看到的路径与真实路径一致，脚本里写的绝对路径照样能用；
+# - 基础工具 git、curl、wget、unzip、zip、jq（D29）：下载、解包技能和资料用，https 要 CA 证书
 RUN apt-get update \
     && apt-get install -y --no-install-recommends fontconfig fonts-wqy-microhei=0.2.0-beta-4 \
+       ca-certificates git curl wget unzip zip jq \
     && rm -rf /var/lib/apt/lists/* \
     && fc-cache -f \
     && (id -u 1000 >/dev/null 2>&1 || useradd --uid 1000 --no-create-home --shell /usr/sbin/nologin agentexec) \
     && ln -s /app/.workdata/workspace /workspace
 COPY deploy/matplotlibrc /etc/matplotlibrc
 ENV MATPLOTLIBRC=/etc/matplotlibrc
-# 去掉系统 Python 自带的 pip（积压小问题 D15，修订 D20）：命令里的 python 是后端的虚拟环境（里面没有 pip），系统 pip 装到
-# 用户目录的包它看不到，会"装好了却用不上"；去掉后 pip 直接找不到命令，与提示词"不能安装新包"一致
+# 去掉系统 Python 自带的 pip：命令里的 pip 是后端虚拟环境里的那个（项目依赖里锁了版本，D29），
+# 装到数据目录里单独的 cache/exec-packages/，后端自己的环境不变；留着系统的会有两个 pip
 RUN python -m pip uninstall -y pip
 
 COPY pyproject.toml uv.lock .python-version ./
