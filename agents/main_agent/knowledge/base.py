@@ -100,3 +100,8 @@ class KnowledgeStore(Protocol):
         """相关记忆召回：只看非常驻的记忆（常驻条目每次都会带上），按意思相似度从高到低，
         低于 min_similarity 的不要；可疑且未确认的不要。"""
         ...
+
+    async def reembed_missing(self, *, limit: int = 20) -> int:
+        """给最多 limit 条还没有向量的条目补上向量（换向量模型、升级后旧向量作废时），
+        返回补了几条；0 表示都有了。向量化不可用时抛出 UpstreamError。"""
+        ...

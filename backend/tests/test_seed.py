@@ -22,11 +22,13 @@ from backend.settings.seed import (
     enable_prompt_caching_once,
     load_seed_models,
     migrate_config_files,
+    retire_ollama_models_once,
     seed_files_once,
     seed_models_once,
 )
 from backend.threads import ThreadRepo
 from common.db import Pool
+from common.errors import UpstreamError
 from config import CONFIG_VERSIONS, config_version, read_config_yaml
 from config.settings import SEED_DIR, AgentConfig, Settings
 
@@ -147,10 +149,11 @@ def test_seed_files_have_a_version() -> None:
 
 
 def test_seed_models_file_matches_the_table() -> None:
-    """4 个模型逐项核对（gemini、gpt 的值取自网关自带的价格表，2026-10-19）。"""
+    """3 个模型逐项核对（gemini、gpt 的值取自网关自带的价格表，2026-10-19）。"""
     items = {item.name: item for item in load_seed_models(SEED_DIR / "models.yaml")}
-    assert list(items) == ["claude-opus-4-6", "gemini-3.5-flash", "gpt-5.5-pro", "embed-qwen3-0.6b"]
-    claude, gemini, gpt, embed = items.values()
+    # 向量模型不在这里：它在后端进程里跑，不经网关（D28）
+    assert list(items) == ["claude-opus-4-6", "gemini-3.5-flash", "gpt-5.5-pro"]
+    claude, gemini, gpt = items.values()
     assert (claude.source, claude.upstream_id, claude.mode) == (
         "upstream",
         "claude-opus-4-6",
@@ -174,12 +177,6 @@ def test_seed_models_file_matches_the_table() -> None:
             True,
             True,
         )
-    assert (embed.source, embed.upstream_id, embed.mode) == (
-        "ollama",
-        "qwen3-embedding:0.6b",
-        "embedding",
-    )
-    assert (embed.price_input, embed.price_output) == (0, 0)
 
 
 def _admin(db: Pool, gateway: FakeGateway) -> ModelAdmin:
@@ -204,12 +201,11 @@ async def test_seed_models_adds_missing_only(tmp_path: Path, db: Pool) -> None:
     )
     items = load_seed_models(SEED_DIR / "models.yaml")
     added = await seed_models_once(tmp_path, _admin(db, gateway), items)
-    assert added == ["gemini-3.5-flash", "gpt-5.5-pro", "embed-qwen3-0.6b"]
+    assert added == ["gemini-3.5-flash", "gpt-5.5-pro"]
     assert [m.name for m in await gateway.list_models()] == [
         "claude-opus-4-6",
         "gemini-3.5-flash",
         "gpt-5.5-pro",
-        "embed-qwen3-0.6b",
     ]
     assert "models" in _marker(tmp_path)
     # 记过就不再导入：之后在模型页删掉的不会回来
@@ -340,3 +336,87 @@ async def test_backfill_indexes_old_runs_once(tmp_path: Path, db: Pool) -> None:
     assert "conversation_index" in _marker(tmp_path)
     assert await backfill_conversation_index_once(tmp_path, runs, jobs, index) == 0
     assert len(jobs.enqueued) == 1
+
+
+def _ollama_gateway() -> FakeGateway:
+    """升级前的样子：网关数据库里有对话模型，还有一个指向本机 Ollama 的向量模型。"""
+    embed = _db_model("embed-qwen3-0.6b", "ollama/qwen3-embedding:0.6b").model_copy(
+        update={"mode": "embedding"}
+    )
+    return FakeGateway(
+        ScriptedChatModel(responses=[]),
+        models=[
+            _db_model("claude-opus-4-6", "litellm_proxy/claude-opus-4-6"),
+            _db_model("gemini-3.5-flash", "litellm_proxy/gemini-3.5-flash"),
+            embed,
+        ],
+    )
+
+
+@pytest.mark.integration
+async def test_retire_ollama_models_once_deletes_only_ollama_models(
+    tmp_path: Path, db: Pool
+) -> None:
+    """compose 里已经没有 Ollama（D28）：升级时把网关里指向它的模型删一次，别的模型不动。"""
+    gateway = _ollama_gateway()
+    admin = _admin(db, gateway)
+    assert await retire_ollama_models_once(tmp_path, admin) == ["embed-qwen3-0.6b"]
+    assert [m.name for m in await gateway.list_models()] == ["claude-opus-4-6", "gemini-3.5-flash"]
+    assert "ollama_retired" in _marker(tmp_path)
+
+
+@pytest.mark.integration
+async def test_retire_ollama_models_runs_once(tmp_path: Path, db: Pool) -> None:
+    """记过标记就不再做：以后用户自己再加一个上游是 ollama/ 的模型，不会被删。"""
+    gateway = _ollama_gateway()
+    admin = _admin(db, gateway)
+    await retire_ollama_models_once(tmp_path, admin)
+    gateway.models.append(_db_model("my-ollama", "ollama/llama3"))
+    assert await retire_ollama_models_once(tmp_path, admin) == []
+    assert "my-ollama" in [m.name for m in await gateway.list_models()]
+
+
+@pytest.mark.integration
+async def test_retire_ollama_models_retries_after_gateway_error(tmp_path: Path, db: Pool) -> None:
+    gateway = _ollama_gateway()
+
+    async def down() -> list[ModelInfo]:
+        raise UpstreamError("模型网关不可用")
+
+    listing = gateway.list_models
+    gateway.list_models = down  # type: ignore[method-assign]
+    assert await retire_ollama_models_once(tmp_path, _admin(db, gateway)) == []
+    assert "ollama_retired" not in _marker(tmp_path)
+    gateway.list_models = listing  # type: ignore[method-assign]
+    assert await retire_ollama_models_once(tmp_path, _admin(db, gateway)) == ["embed-qwen3-0.6b"]
+
+
+@pytest.mark.integration
+async def test_retire_ollama_models_waits_for_the_gateway_to_load(tmp_path: Path, db: Pool) -> None:
+    """网关刚启动、还没载入数据库里的模型时什么都不做，也不记标记（否则以后再也不会删）。"""
+    gateway = FakeGateway(
+        ScriptedChatModel(responses=[]), models=[ModelInfo(name="claude-in-yaml")]
+    )
+    assert await retire_ollama_models_once(tmp_path, _admin(db, gateway)) == []
+    assert "ollama_retired" not in _marker(tmp_path)
+
+
+@pytest.mark.integration
+async def test_retire_keeps_an_ollama_model_that_is_still_in_use(tmp_path: Path, db: Pool) -> None:
+    """用户把它设成了默认对话模型（自己在别处跑着 Ollama）：留着，不硬删。"""
+    gateway = _ollama_gateway()
+    gateway.models.append(_db_model("claude-opus-4-6-local", "ollama/some-chat-model"))
+    settings = Settings(
+        database_url="postgresql://unused",
+        litellm_master_key="sk-test",
+        agent=AgentConfig(default_model="claude-opus-4-6-local"),
+    )
+    admin = ModelAdmin(
+        settings,
+        gateway,
+        ThreadRepo(db),
+        AppSettingsService(settings, AppSettingsRepo(db)),
+        RunRepo(db),
+    )
+    assert await retire_ollama_models_once(tmp_path, admin) == ["embed-qwen3-0.6b"]
+    assert "claude-opus-4-6-local" in [m.name for m in await gateway.list_models()]

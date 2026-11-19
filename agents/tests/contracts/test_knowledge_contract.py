@@ -6,7 +6,7 @@ PostgreSQL 实现用假向量模型：含有相同词表词的文字向量相近
 """
 
 import uuid
-from collections.abc import Awaitable, Callable
+from collections.abc import Awaitable, Callable, Sequence
 from uuid import UUID
 
 import pytest
@@ -18,6 +18,7 @@ from agents.main_agent.knowledge import (
     NewKnowledge,
     PgKnowledgeStore,
 )
+from agents.main_agent.models import EmbedKind
 from agents.tests.fakes import FakeEmbedder, FakeKnowledgeStore
 from common.db import Pool
 from common.errors import NotFoundError
@@ -44,9 +45,11 @@ def make_pg(db: Pool) -> Factory:
 class _CountingEmbedder(FakeEmbedder):
     calls = 0
 
-    async def embed(self, texts: object) -> list[list[float]]:
+    async def embed(
+        self, texts: Sequence[str], *, kind: EmbedKind = "document"
+    ) -> list[list[float]]:
         self.calls += 1
-        return await super().embed(texts)  # type: ignore[arg-type]
+        return await super().embed(texts, kind=kind)
 
 
 @pytest.fixture
@@ -238,6 +241,76 @@ async def test_updating_only_tags_does_not_embed_again(db: Pool) -> None:
     await store.update(item.id, tags=["偏好"], pinned=True)
     await store.update(item.id, content="用户喜欢喝咖啡")
     assert embedder.calls == before
+
+
+class _RecordingEmbedder(FakeEmbedder):
+    """记下每次向量化的用途与文字。"""
+
+    def __init__(self) -> None:
+        super().__init__(VOCABULARY)
+        self.seen: list[tuple[str, str]] = []
+
+    async def embed(
+        self, texts: Sequence[str], *, kind: EmbedKind = "document"
+    ) -> list[list[float]]:
+        self.seen += [(kind, text) for text in texts]
+        return await super().embed(texts, kind=kind)
+
+
+async def test_embeds_queries_and_documents_by_kind(db: Pool, document: DocumentFactory) -> None:
+    """存进去的按"文档"算、搜的时候按"查询"算；前缀由向量化实现加，这里给的是原文（D28）。"""
+    embedder = _RecordingEmbedder()
+    store = PgKnowledgeStore(db, embedder)
+    item = await store.add(_memory("用户喜欢喝咖啡"))
+    await store.update(item.id, content="用户喜欢喝茶")
+    await store.add_chunks(await document(store), "员工手册", _chunks(1))
+    await store.search("咖啡")
+    await store.recall("茶", top_k=1, min_similarity=0.0)
+    assert embedder.seen == [
+        ("document", "用户喜欢喝咖啡"),
+        ("document", "用户喜欢喝茶"),
+        ("document", "《员工手册》第一章 考勤\n第 0 段内容"),
+        ("query", "咖啡"),
+        ("query", "茶"),
+    ]
+
+
+async def _drop_vectors(db: Pool) -> None:
+    """模拟升级后的样子（迁移 0019）：旧模型算的向量作废置空，模型名还是旧的。"""
+    async with db.connection() as conn:
+        await conn.execute("UPDATE knowledge_items SET embedding = NULL, embedding_model = 'old'")
+
+
+async def test_items_without_vectors_are_found_by_words_only(db: Pool) -> None:
+    """还没补上向量的条目（D28）：按关键词照常搜得到；按意思检索不报错，只是找不到它。"""
+    store = PgKnowledgeStore(db, FakeEmbedder(VOCABULARY))
+    item = await store.add(_memory("用户喜欢喝咖啡"))
+    await _drop_vectors(db)
+    assert [hit.item.id for hit in await store.search("咖啡")] == [item.id]
+    assert await store.recall("咖啡", top_k=3, min_similarity=0.0) == []
+
+
+async def test_reembed_missing_fills_in_batches(db: Pool, document: DocumentFactory) -> None:
+    """后台补算（D28）：每次补几条，直到补完；文档片段用的文字和入库时一样（带文档名、章节）。"""
+    embedder = _RecordingEmbedder()
+    store = PgKnowledgeStore(db, embedder)
+    memory = await store.add(_memory("用户喜欢喝咖啡"))
+    await store.add_chunks(await document(store), "员工手册", _chunks(2))
+    stored = list(embedder.seen)
+    await _drop_vectors(db)
+    embedder.seen.clear()
+    assert [await store.reembed_missing(limit=2) for _ in range(3)] == [2, 1, 0]
+    assert sorted(embedder.seen) == sorted(stored)  # 用途、文字都与入库时相同
+    items = await store.list_items()
+    assert {item.embedding_model for item in items} == {"fake-embedding"}
+    hits = await store.recall("咖啡", top_k=1, min_similarity=0.0)
+    assert [hit.item.id for hit in hits] == [memory.id]
+
+
+async def test_reembed_missing_returns_zero_when_nothing_is_missing(make: Factory) -> None:
+    store = make()
+    await store.add(_memory("用户喜欢喝咖啡"))
+    assert await store.reembed_missing() == 0
 
 
 # 可疑检查（设计 2026-10-23 6.6）

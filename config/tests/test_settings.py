@@ -60,7 +60,7 @@ def test_defaults_match_the_old_app_yaml(monkeypatch: pytest.MonkeyPatch) -> Non
         120,
     )
     knowledge = settings.knowledge
-    assert knowledge.embedding_model == "embed-qwen3-0.6b"
+    assert knowledge.embedding_model == "embeddinggemma-300m-q4"  # 进程内的向量模型（D28）
     assert (knowledge.recall_top_k, knowledge.recall_min_similarity) == (5, 0.3)
     assert (knowledge.recall_timeout, knowledge.pinned_token_limit) == (5, 2000)
     assert knowledge.auto_extract is True
@@ -70,8 +70,9 @@ def test_defaults_match_the_old_app_yaml(monkeypatch: pytest.MonkeyPatch) -> Non
     assert (adapters.model_gateway, adapters.workspace, adapters.embedder) == (
         "litellm_proxy",
         "local",
-        "litellm_proxy",
+        "onnx",
     )
+    assert [source.id for source in settings.models.sources] == ["upstream"]  # 不再有本机 Ollama
     assert (adapters.knowledge_index, adapters.doc_parser) == ("pgvector", "markitdown")
     assert (adapters.blob_storage, adapters.mcp_client) == ("local_disk", "mcp_adapters")
     assert "budget" not in type(settings).model_fields
@@ -180,3 +181,27 @@ def test_default_workdata_dir_is_hidden(monkeypatch: pytest.MonkeyPatch) -> None
     from config.settings import ROOT_DIR
 
     assert _load(monkeypatch).workdata_dir == ROOT_DIR / ".workdata"
+
+
+def test_models_dir_and_download_base(monkeypatch: pytest.MonkeyPatch) -> None:
+    """向量模型文件放 .workdata/models（D28）；下载地址只从环境变量读（网络慢时换镜像站），
+    不进设置页。"""
+    from config.settings import ROOT_DIR
+
+    settings = _load(monkeypatch)
+    assert settings.models_dir == ROOT_DIR / ".workdata" / "models"
+    assert settings.embedding_download_base == "https://huggingface.co"
+    monkeypatch.setenv("EMBEDDING_DOWNLOAD_BASE", "https://mirror.example")
+    assert _load(monkeypatch).embedding_download_base == "https://mirror.example"
+    assert "embedding_download_base" not in {spec.key for spec in SETTING_SPECS}
+
+
+def test_adapter_notes_say_how_many_implementations_exist() -> None:
+    # 向量化有两种实现（D28），其余接口各只有一种：设置页上的说明要对得上
+    notes = {
+        spec.key: spec.note or "" for spec in SETTING_SPECS if spec.key.startswith("adapters.")
+    }
+    assert "onnx" in notes["adapters.embedder"]
+    assert "litellm_proxy" in notes["adapters.embedder"]
+    assert "只有一种" not in notes["adapters.embedder"]
+    assert notes["adapters.workspace"] == "目前只有一种实现"

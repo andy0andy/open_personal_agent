@@ -17,7 +17,7 @@ make install              # 严格按锁文件安装 Python 与前端依赖
 
 ```bash
 podman machine start      # 电脑重启后需要；已在运行会提示 already running
-make up                   # 一键启动：数据库、模型网关、Ollama、后端（含打包好的前端）
+make up                   # 一键启动：数据库、模型网关、后端（含打包好的前端）
 ```
 
 **新机器上从仓库克隆、只用 Docker 部署**（2026-11-02 起没有 `.env` 也能启动）：
@@ -26,10 +26,22 @@ make up                   # 一键启动：数据库、模型网关、Ollama、�
 2. `git clone <仓库地址> && cd open_personal_agent`，然后 `cp .env.example .env`，填上 `UPSTREAM_GATEWAY_URL` 与 `UPSTREAM_GATEWAY_KEY`。不填也能起来，只是模型调不通。
 3. 网关的两个密钥（`LITELLM_MASTER_KEY`、`LITELLM_SALT_KEY`）有默认值，不用管。装了 make 的话 `make up` 等命令也一样，不要求先有 `.env`。想自己设的话，`LITELLM_SALT_KEY` 必须在第一次加模型之前设好，之后就不能改了。
 4. `mkdir -p .workdata/workspace .workdata/shared`：Linux 上不先建好，Docker 会以 root 身份自动建出来，之后备份时可能没权限。
-5. `cd deploy && docker compose up -d`：第一次会从源码构建后端镜像（几分钟），并下载约 640MB 的向量模型。
+5. `cd deploy && docker compose up -d`：第一次会从源码构建后端镜像（几分钟）；启动后后端在后台下载约 207 MB 的向量模型，下载期间照常能对话，知识库稍后可用（`make doctor` 的“向量模型”一项变 ✓ 就是下好了）。
 6. Windows 上克隆时，`deploy/.env` 这个链接可能变成普通文件：把根目录的 `.env` 复制一份到 `deploy/` 覆盖它。
 
-不用 make 也能启动，效果一样：在项目里 `cd deploy && podman compose up -d`（用 Docker 的把 `podman compose` 换成 `docker compose`；在项目根目录则是 `podman compose -f deploy/docker-compose.yml up -d`）。第一次启动会先下载向量模型。`deploy/.env` 是指向根目录 `.env` 的链接，compose 靠它读到 `.env`，不要删。
+不用 make 也能启动，效果一样：在项目里 `cd deploy && podman compose up -d`（用 Docker 的把 `podman compose` 换成 `docker compose`；在项目根目录则是 `podman compose -f deploy/docker-compose.yml up -d`）。第一次启动后后端会在后台下载向量模型。`deploy/.env` 是指向根目录 `.env` 的链接，compose 靠它读到 `.env`，不要删。
+
+**向量模型**（把文字变成向量，知识库和记忆靠它“按意思检索”）在后端进程里运行，不另起服务（D28）。用的是谷歌的 [EmbeddingGemma 300M](https://huggingface.co/google/embeddinggemma-300m) 的 ONNX 量化版（[onnx-community/embeddinggemma-300m-ONNX](https://huggingface.co/onnx-community/embeddinggemma-300m-ONNX)，约 207 MB），它适用 [Gemma 使用条款](https://ai.google.dev/gemma/terms)，不是标准的开源许可。模型不随本仓库和镜像分发：后端第一次启动后在后台下载到 `.workdata/models/` 并按固定的哈希校验，下载期间照常能对话，知识库稍后可用。网络慢时在 `.env` 里设 `EMBEDDING_DOWNLOAD_BASE` 换成镜像站，再 `make restart`。
+
+**从用 Ollama 的旧版本升级**（2026-11-18 之前装的）：先 `make backup`，再 `make build`。升级后原来的 Ollama 不会自动删（程序不替你删数据），两个容器、一个数据卷和镜像还在，容器还在运行。等 `make doctor` 的“向量模型”一项打 ✓、知识库能搜到以后，手工清掉，能腾出约 4.8 GB（用 Docker 的把 `podman` 换成 `docker`）：
+
+```bash
+podman rm -f open-personal-agent-ollama-1 open-personal-agent-ollama-init-1
+podman volume rm open-personal-agent_ollama-models
+podman rmi mirror.gcr.io/ollama/ollama:0.40.3
+```
+
+这三条只动 Ollama 的东西，不影响数据库、网关和 `.workdata`。
 
 打开 http://127.0.0.1:8000 。停止用 `make down`（或在 deploy 目录里 `podman compose down`），数据会保留。不用的时候可以 `podman machine stop`，把虚拟机占的内存还给电脑。
 
@@ -55,13 +67,13 @@ make up                   # 一键启动：数据库、模型网关、Ollama、�
 1. 在构建镜像的电脑上（要有项目文件夹与 Docker 或 Podman，不需要 `.env`）：`make bundle`，或不用 make：`bash deploy/bundle-images.sh`。它构建后端、拉取另外 3 个镜像，存成一个文件 `dist/open-personal-agent-images-<时间>.tar`。目标机器的芯片和这台不同时加上 `PLATFORM=linux/arm64`（Apple 芯片的 Mac）或 `PLATFORM=linux/amd64`（Intel / AMD）。已经有镜像、只想存成文件时加 `SKIP_BUILD=1`（这时 `PLATFORM` 不起作用）。注意：构建电脑自己也跑着这套服务时，按别的芯片打包会把本机同名镜像换掉，打完包本机要用时重新 `make build`。
 2. 在旧机器上 `make backup`。
 3. 拷到新机器：项目文件夹（不用带 `.venv`、`node_modules`、`.workdata`）、`.env`（`LITELLM_SALT_KEY` 必须和旧机器一样：旧机器 `.env` 里没写就是默认值，新机器也别写）、镜像文件、备份（放进新机器的 `.workdata/backups/`）。
-4. 新机器上（要有 make；第一次启动会下载向量模型约 640MB，没联网时后端照常起来，知识库要等模型下好）：`podman load -i <镜像文件>`（或 `docker load -i …`）→ `cd deploy && podman compose up -d` → `make restore BACKUP=<备份名>`。
+4. 新机器上（要有 make；镜像包里没有向量模型：第一次启动后后端在后台下载约 207 MB，没联网时后端照常起来、知识库要等模型下好；也可以把原机器的 `.workdata/models/` 整个拷过来，就不用下载）：`podman load -i <镜像文件>`（或 `docker load -i …`）→ `cd deploy && podman compose up -d` → `make restore BACKUP=<备份名>`。
 5. 时区：直接用 compose 启动时按 `.env` 里的 `HOST_TZ`（没写就是 UTC），经 make 启动时按本机系统时区。
 6. Windows 上拷项目文件夹时，`deploy/.env` 这个链接可能丢失或变成普通文件：把根目录的 `.env` 复制一份到 `deploy/`，或启动时加 `--env-file ../.env`。
 7. 以后改了代码：在构建电脑上重新 `make bundle`，拿到新机器 `load` 之后再 `podman compose up -d`。也可以推到镜像仓库再拉取，这里不展开。
 8. 每次 `make build` 或加载新镜像后，旧镜像会留成没有名字的悬空镜像，占几百 MB 到 1GB；偶尔 `podman image prune` 清一下。
 
-**不知道哪里出了问题时先体检**：`make doctor` 逐项检查容器、后端、网关（连同它的数据库）、模型、Ollama 的向量模型、数据库、`.workdata` 里的配置文件、磁盘剩余和备份，每项打 ✓ 或 ✗，✗ 下面一行写着怎么修。只读：不改任何东西、不花 token、不打印密钥。
+**不知道哪里出了问题时先体检**：`make doctor` 逐项检查容器、后端、网关（连同它的数据库）、模型、向量模型文件、数据库、`.workdata` 里的配置文件、磁盘剩余和备份，每项打 ✓ 或 ✗，✗ 下面一行写着怎么修。只读：不改任何东西、不花 token、不打印密钥。
 
 ## 3. 日常使用
 
@@ -135,10 +147,10 @@ make up                   # 一键启动：数据库、模型网关、Ollama、�
   - 每个技能下面写着最近一次用到它的时间（"最近使用：…"，没用过写"从未使用"），不常用的可以停用或删掉。
   - 说明（`description`）要短：每次对话智能体都要读一遍所有技能的说明。超过 300 字会提示"说明尽量短"，超过 1024 字提示"会被截断"（智能体只读前 1024 字）；上传后页面顶部提示一次，列表和详情里也一直显示。
 - **模型页**（侧栏"模型"）：
-  - 点"新增模型"加一个模型：选来源（公司 LiteLLM 网关 / 本机 Ollama），填厂商模型 ID、模型名、上下文与输出上限、价格（美元 / 每百万 token，或标为免费）。保存后立即可用，不用重启网关；密钥用 `.env` 里已有的那个，页面上不填密钥。
-  - 模型全部存在网关的数据库里（D22）：首次启动时导入 4 个（claude-opus-4-6、gemini-3.5-flash、gpt-5.5-pro、embed-qwen3-0.6b，清单在 `config/seed/models.yaml`），之后都能编辑（模型名不能改）、删除；删掉后，在用它的会话改用默认对话模型，历史消息和用量保留。默认模型不能删；有对话正在用（运行中或等审批）的模型也不能删，等它结束或停止后再删（2026-10-26 起）。模型不能叫 `default`，默认对话模型也不能改成向量模型（先换一个默认对话模型）。
+  - 点"新增模型"加一个模型：选来源（公司 LiteLLM 网关），填厂商模型 ID、模型名、上下文与输出上限、价格（美元 / 每百万 token，或标为免费）。保存后立即可用，不用重启网关；密钥用 `.env` 里已有的那个，页面上不填密钥。
+  - 模型全部存在网关的数据库里（D22）：首次启动时导入 3 个对话模型（claude-opus-4-6、gemini-3.5-flash、gpt-5.5-pro，清单在 `config/seed/models.yaml`），之后都能编辑（模型名不能改）、删除；删掉后，在用它的会话改用默认对话模型，历史消息和用量保留。默认模型不能删；有对话正在用（运行中或等审批）的模型也不能删，等它结束或停止后再删（2026-10-26 起）。模型不能叫 `default`，默认对话模型也不能改成向量模型（先换一个默认对话模型）。
   - 每个模型都有价格（美元 / 每百万 token，可以是免费）：只是模型的资料，用量统计不用它。
-  - "默认模型"里改对话模型，新会话就用它（也可以在设置页改）。向量模型只读：换向量模型要把整个知识库重新向量化，暂不支持在页面上改。
+  - "默认模型"里改对话模型，新会话就用它（也可以在设置页改）。向量模型只读：它在后端进程里运行（embeddinggemma-300m-q4，D28），不在这张表里；换向量模型要把整个知识库重新向量化，暂不支持在页面上改。
   - Claude 系列的模型有"提示缓存"开关（D24）：打开后，同一会话里不变的部分（工具定义、系统提示词、之前的对话）由模型服务缓存，再次发送按约十分之一计价；新增 Claude 模型默认打开，升级时已有的 Claude 模型打开一次，之后关掉的不会再被打开。模型列表里开着的显示"缓存"标签。
   - "测试"会真的调用一次模型（花几个 token），结果显示在这一行下面。默认对话模型、在用的向量模型的删除按钮是灰的（鼠标停上去看原因）。
 - **MCP 页**（侧栏"MCP"）：
@@ -217,7 +229,9 @@ make restore BACKUP=20261016-120000  # 用这份备份恢复（会先问你确�
 - **回答写到一半不动了**：多半是网络断了或模型服务卡住了。模型连续 120 秒没有发来新内容时，这次回答会自动停下并说明原因（等不及可以直接点停止）；已写出的部分保留，网络恢复后说“继续”就能接着写。时长在设置页的"模型多少秒没有新内容就放弃这次调用"里改，改完 `make restart`。
 - **回答迟迟不开始**：等第一个字的时限比上面更宽（每 10 万 token 的上下文多等 60 秒，最多 300 秒）；超时还没开始输出时会自动重发一次（看不出来），再不行才报"还没有开始输出"，这时可以点"重试这一轮"或"换个模型"。
 - **`make up` 报 `Cannot connect to Podman`、`ssh: handshake failed`**：Podman 虚拟机卡住了（电脑内存紧张、换页严重时会发生）。运行 `podman machine stop && podman machine start` 后再 `make up`。
-- **文档处理很慢**：向量化在本机只用 CPU，约 1～2 秒一段，100 页的 PDF 要几分钟；处理期间照常聊天。
+- **文档处理很慢**：向量化在后端进程里只用 CPU，约 0.5 秒一段（处理时 CPU 会用满），100 页的 PDF 要一两分钟；处理期间照常聊天。
+- **知识库搜不到、提示“向量模型还没下载好”**：`make doctor` 看“向量模型”一项，`make logs` 看下载进度（失败了后端会隔几分钟自己再试）；下载地址慢就在 `.env` 里设 `EMBEDDING_DOWNLOAD_BASE` 换镜像站，再 `make restart`。
+- **升级后旧文档暂时只能按关键词搜到**：换向量模型后旧向量作废，后端启动后在后台重新算（每秒约 2 段），算完自动恢复，不用操作。
 - **MCP 服务显示"连接失败"**：
   - MCP 页的服务列表写着原因（如找不到命令、缺少环境变量、连接超时）；
   - 第一次启动时 `npx` 要下载服务，可能要几十秒，期间显示"连接中"；这时发起的对话最多等 20 秒，等它连好再开始；

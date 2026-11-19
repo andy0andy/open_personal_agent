@@ -1,6 +1,7 @@
-"""先行验证 V1 / V2 / V3 / V6：调用真实模型，会产生少量费用。运行：make smoke。
+"""先行验证 V1 / V2 / V3：调用真实模型，会产生少量费用。运行：make smoke。
 
-前提：make infra-up 已启动网关与 Ollama；.env 里填好了 Anthropic 与 SMOKE_ALT_MODEL 对应厂商的密钥。
+前提：make infra-up 已启动数据库与网关；.env 里填好了 Anthropic 与 SMOKE_ALT_MODEL 对应厂商的密钥。
+向量模型在进程里跑（D28），它的真实验证在 test_onnx_embedding.py。
 每个测试用 print 输出观察到的事实（-s 模式可见），据此填写 docs/decisions/M0-先行验证结论.md。
 """
 
@@ -9,7 +10,6 @@ import hashlib
 import json
 import os
 import re
-import statistics
 import sys
 import tempfile
 import time
@@ -17,7 +17,6 @@ import uuid
 from pathlib import Path
 from typing import Any
 
-import httpx
 import pytest
 from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
 from langchain_litellm import ChatLiteLLM
@@ -32,7 +31,7 @@ from agents.main_agent.knowledge import (
     NewKnowledge,
     PgKnowledgeStore,
 )
-from agents.main_agent.models import EMBEDDING_DIMENSIONS, LiteLLMProxyEmbedder, LiteLLMProxyGateway
+from agents.main_agent.models import ONNX_MODELS, LiteLLMProxyGateway, OnnxEmbedder, files_ready
 from agents.main_agent.models.litellm_proxy import CACHE_POINTS
 from agents.main_agent.runtime import (
     ApprovalAnswer,
@@ -53,7 +52,6 @@ pytestmark = pytest.mark.live
 
 CLAUDE = os.environ.get("SMOKE_CLAUDE_MODEL", "claude-opus-4-6")
 ALT = os.environ.get("SMOKE_ALT_MODEL", "gemini-3.5-flash")
-EMBED = "embed-qwen3-0.6b"
 _FIXTURES = Path(__file__).resolve().parents[1] / "fixtures" / "documents"
 _SYSTEM_PROMPT = Path(__file__).resolve().parents[2] / "prompts" / "system.md"
 _DEMO_MCP = Path(__file__).resolve().parents[1] / "fixtures" / "mcp" / "demo_server.py"
@@ -157,53 +155,6 @@ async def test_v3_switch_models_mid_thread(gateway: LiteLLMProxyGateway) -> None
         _assert_completed(events, f"V3 第 {index} 轮（{model}）")
 
 
-async def test_v6_local_embedding_dims_and_speed() -> None:
-    settings = get_settings()
-    headers = {"Authorization": f"Bearer {settings.litellm_master_key.get_secret_value()}"}
-    async with httpx.AsyncClient(
-        base_url=settings.litellm_base_url, headers=headers, timeout=120
-    ) as client:
-
-        async def embed(texts: list[str]) -> dict[str, Any]:
-            resp = await client.post("/v1/embeddings", json={"model": EMBED, "input": texts})
-            resp.raise_for_status()
-            body: dict[str, Any] = resp.json()
-            return body
-
-        warmup = await embed(["预热"])
-        dims = len(warmup["data"][0]["embedding"])
-        print("V6 向量维度：", dims, "用量字段：", warmup.get("usage"))
-        assert dims == 1024
-
-        latencies = []
-        for _ in range(5):
-            start = time.perf_counter()
-            await embed(["今天下午三点和产品经理开会讨论需求"])
-            latencies.append(time.perf_counter() - start)
-        median_ms = statistics.median(latencies) * 1000
-        print(f"V6 单条查询中位耗时：{median_ms:.0f} 毫秒")
-
-        chunk = "个人知识库中的一段文档内容，用于测试批量向量化的速度。" * 25  # 约 600 token
-        start = time.perf_counter()
-        for _ in range(10):
-            await embed([chunk] * 30)
-        batch_seconds = time.perf_counter() - start
-        print(f"V6 300 个片段耗时：{batch_seconds:.1f} 秒")
-
-        assert median_ms < 300
-        assert batch_seconds < 60
-
-
-async def test_embedder_through_gateway() -> None:
-    """M3a：知识库用的向量化接口经网关调用本机向量模型，维度为 1024。"""
-    settings = get_settings()
-    embedder = LiteLLMProxyEmbedder(
-        settings.litellm_base_url, settings.litellm_master_key.get_secret_value(), EMBED
-    )
-    vectors = await embedder.embed(["用户喜欢喝茶", "今天天气不错"])
-    assert [len(v) for v in vectors] == [EMBEDDING_DIMENSIONS, EMBEDDING_DIMENSIONS]
-
-
 async def test_memory_extraction_and_title_with_real_model(gateway: LiteLLMProxyGateway) -> None:
     """M3a：会后提取记忆、生成标题用会话所选的模型；模型只回 JSON，由我们自己解析。"""
     store = FakeKnowledgeStore()
@@ -250,10 +201,10 @@ async def test_document_ingest_and_cited_answer(
 ) -> None:
     """M3b：真实向量模型把文档入库；真实模型回答时照抄检索结果给出的出处链接。需要 make test-up。"""
     settings = get_settings()
-    embedder = LiteLLMProxyEmbedder(
-        settings.litellm_base_url, settings.litellm_master_key.get_secret_value(), EMBED
-    )
-    store = PgKnowledgeStore(db, embedder)
+    spec = ONNX_MODELS[settings.knowledge.embedding_model]
+    if not files_ready(settings.models_dir / spec.name, spec):
+        pytest.skip("向量模型还没下载：先 make up 启动一次后端，等它在后台下好")
+    store = PgKnowledgeStore(db, OnnxEmbedder(settings.models_dir / spec.name, spec))
     library = DocumentLibrary(
         DocumentRepo(db),
         store,

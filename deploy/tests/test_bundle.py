@@ -9,7 +9,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
 SCRIPT = ROOT / "deploy" / "bundle-images.sh"
-_IMAGES = "mirror.gcr.io/ollama/ollama:0.40.3\nopen-personal-agent-backend:latest\n"
+_IMAGES = "ghcr.io/berriai/litellm:v1.105.0\nopen-personal-agent-backend:latest\n"
 
 
 def _fake(tmp_path: Path, name: str) -> Path:
@@ -43,11 +43,16 @@ def test_builds_pulls_then_saves_every_image(tmp_path: Path) -> None:
     assert any(" pull " in f" {call} " for call in calls)
     [save] = [call for call in calls if call.startswith("save ")]
     assert save.split(" | ")[0].endswith(
-        "mirror.gcr.io/ollama/ollama:0.40.3 open-personal-agent-backend:latest"
+        "ghcr.io/berriai/litellm:v1.105.0 open-personal-agent-backend:latest"
     )
     # 目标机器的芯片同时作用于构建与拉取
     assert all(call.endswith("| linux/arm64") for call in calls)
     assert "load -i" in out
+
+
+def test_script_no_longer_pulls_ollama() -> None:
+    """包里没有 Ollama 的镜像了（D28）；向量模型也不在包里，目标机器上自动下载或手工拷贝。"""
+    assert "ollama" not in SCRIPT.read_text(encoding="utf-8").lower()
 
 
 def test_skip_build_only_saves(tmp_path: Path) -> None:

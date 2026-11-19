@@ -236,6 +236,7 @@ POST /threads/{id}/runs → RunManager.start：建运行记录，交给运行控
 每次运行开始 → MainAgent 查常驻条目 → 运行上下文 → 知识上下文中间件拼进系统提示词末尾
 新的一轮开始 → 与这句话相关的记忆（向量召回）→ 放在本轮用户消息开头（"系统附加"，D24）；审批后继续不再召回
 上下文快满 → 自建压缩中间件：先对要压掉的部分提取一次记忆（只主智能体、只送没提取过的消息）→ 摘要 → 附上用户原话与锚点索引
+后端启动 → 后台 _prepare_embeddings：向量模型文件缺了、坏了就下载并校验（D28；失败后隔 1、5、15 分钟再试）→ 给没有向量的知识条目分批补算（每次启动都查）
 智能体 remember → 知识存储写入（向量化 + 分词）→ 工具结果附带条目 → 翻译器推送 memory.saved → 前端"已记住"
 运行顺利结束 → RunFollowups 登记后台任务（第一次顺利结束：标题；开启自动提取：记忆提取）→ jobs 表
   └→ TableJobQueue 后台循环逐个处理 → 读运行的消息与回答 → MainAgent.generate_title / extract_memories
@@ -253,9 +254,11 @@ POST /threads/{id}/runs → RunManager.start：建运行记录，交给运行控
 
 | 位置 | 职责 |
 |---|---|
-| `agents/main_agent/models/embedding.py` | 替换点：向量化（`Embedder`），经网关的实现；统一 1024 维；契约测试 `agents/tests/contracts/test_embedder_contract.py` |
+| `agents/main_agent/models/embedding.py` | 替换点：向量化（`Embedder`：`embed(texts, kind=查询/文档)`，前缀由实现按用途加）；统一 768 维（D28）；经网关的实现 `LiteLLMProxyEmbedder`（备用，端到端测试用）；契约测试 `agents/tests/contracts/test_embedder_contract.py` |
+| `agents/main_agent/models/onnx_embedder.py` | 默认的向量化实现（D28）：后端进程里用 ONNX Runtime 跑 EmbeddingGemma 300M；第一次用到才加载，计算放线程、一次只算一批；模型的仓库、提交、文件哈希固定在 `ONNX_MODELS`；`onnxruntime`、`tokenizers` 只在这里导入 |
+| `agents/main_agent/models/onnx_download.py` | `ensure_model`：模型文件缺了、坏了才下载到 `.workdata/models/<模型名>/`，多连接分段，按固定的 SHA-256 校验，先写 `.part` 再改名 |
 | `agents/main_agent/knowledge/base.py` | 替换点：知识存储（`KnowledgeStore`：增删改查、常驻条目、检索、记忆召回）；契约测试 `test_knowledge_contract.py`（集成） |
-| `agents/main_agent/knowledge/pgvector.py` | PostgreSQL 实现：`knowledge_items` 表；向量检索与关键词检索按倒数排名融合合并；查询加 Qwen 的任务说明前缀，条目本身不加 |
+| `agents/main_agent/knowledge/pgvector.py` | PostgreSQL 实现：`knowledge_items` 表；向量检索与关键词检索按倒数排名融合合并；查询、文档各按用途交给向量化实现（前缀由它加）；没有向量的条目（升级后旧向量作废）只走关键词，`reembed_missing` 分批补算 |
 | `agents/main_agent/knowledge/tokens.py` | jieba 分词（搜索引擎模式），写入与查询用同一套切法 |
 | `agents/main_agent/knowledge/extraction.py` | 会后提取记忆：对照相近的已有记忆，按模型回的 JSON 新增 / 更新 / 删除 |
 | `agents/main_agent/runtime/knowledge.py` | `remember` / `update_memory` / `forget_memory` / `search_knowledge` / `read_document` 工具与知识上下文中间件 |
@@ -276,7 +279,7 @@ POST /threads/{id}/runs → RunManager.start：建运行记录，交给运行控
 
 约定：
 0. **记忆放在哪**（D24，修订 D17 的放置位置）：常驻条目每次调用前拼在系统提示词末尾；相关记忆在新的一轮开始时召回一次，放在本轮用户消息开头（"系统附加"的说明 + `<related_memories>`，尖括号转全角，之后才是用户原话），审批后继续不再召回。系统提示词因此在一个会话里不变，提示缓存才能命中（Claude 的缓存断点写在网关的模型参数里，D24）。用到用户原话的地方（标题、记忆提取、压缩附录、端到端假模型）用 `user_words()` 去掉这段。
-1. **召回失败不影响回答**：向量化服务不可用或召回超过 `knowledge.recall_timeout`（默认 5 秒）时，本次运行不带相关记忆（常驻条目不需要向量化，照常带上）；召回只拿消息开头 2000 字，只找非常驻的记忆（常驻条目本来就每次都带上，不占名额）；`remember` / `search_knowledge` 失败时工具结果标为出错并说明原因，运行继续。知识库页的添加、搜索返回 503 并说明原因，不带搜索词的列表照常可用。
+1. **召回失败不影响回答**：向量化不可用（如向量模型还没下载好）或召回超过 `knowledge.recall_timeout`（默认 5 秒）时，本次运行不带相关记忆（常驻条目不需要向量化，照常带上）；召回只拿消息开头 2000 字，只找非常驻的记忆（常驻条目本来就每次都带上，不占名额）；`remember` / `search_knowledge` 失败时工具结果标为出错并说明原因，运行继续。知识库页的添加、搜索返回 503 并说明原因，不带搜索词的列表照常可用。
 2. **常驻条目**：每次调用模型都带上，总量上限是设置 `knowledge.pinned_token_limit`（默认 2000 token），2026-10-23 起是硬限制（设计 6.6）：`remember` 设常驻、知识库页新增或改成常驻、改了常驻条目的内容（`update_memory` 同样）时用 `pinned_room` 检查，放不下就拒绝（接口 409，工具结果出错），改的那条原来的大小不算；系统提示词写"常驻信息已用 X / 上限 token"（按全部常驻算，含可疑的）。文档片段不能设常驻（422）。自动提取不改常驻条目（只列给模型看，避免重复）。
 2a. **可疑的记忆**（设计 2026-10-23 6.6）：存储实现在写入记忆（`add`、`update` 改了内容时）时调用 `suspicious_reason`，命中的记下类名（`suspicious`），改了内容重新检查并把 `trusted` 复位（迁移 0016）；文档片段不查。可疑且未确认（`KnowledgeItem.flagged`）的不拼进常驻提示词、不给提取模型看、不出现在 `search`（页面检索传 `include_suspicious=True`）与 `recall` 里；知识库页照常列出，另有"可疑"视图（`list_items(flagged=True)`），"确认无害"即 `PATCH {trusted: true}`。资料标记与尖括号转义照旧（两道防线）。规则只认针对智能体的说法（审查后收紧：误标的记忆会悄悄失效）：英文词边界用"前后不是英文字母数字"（汉字也算 `\w`），先去掉零宽字符；每段长度都有上限、邮箱用 ASCII 字符类，长文本也是线性时间；改规则时把误报、漏报的句子都加进 `test_suspicious.py`。
 2b. **记忆脱敏**（R48）：存储实现在写入记忆（`add`、`update` 改内容）时先过 `common/redact.py` 的 `redact` 再存，向量、分词、可疑检查用的都是打码后的内容；三个入口（`remember` / `update_memory` 工具、自动提取、知识库页）都经过存储层，不必各自处理。只对 `kind == "memory"` 做，文档片段原样保留。工具发现存下的内容和要记的不一样时，在结果里告诉模型"其中的密钥已打码，原文没有保存"。契约测试要求所有 `KnowledgeStore` 实现都这样做。
@@ -286,7 +289,7 @@ POST /threads/{id}/runs → RunManager.start：建运行记录，交给运行控
 4. **标题**：会话的标题先是首条消息的前 30 个字（自动标题）；第一次顺利结束后由后台生成。只有标题仍是自动标题时才替换（带条件更新，生成期间用户改了名也不覆盖）。前端在运行结束后标题仍是自动标题时，隔 2、5、10、20 秒刷新会话列表。
 5. **新增后台任务种类**：在 `RunFollowups.handlers()` 登记处理函数，在 `after_completed` 里决定何时登记。处理函数可能被重试或在重启后重做：写成重做也无妨的样子；做不到时写明后果（如记忆提取做到一半被打断、重做时，可能多出一条重复的记忆，用户可在知识库页删除）。
 6. **报错原因**：向量化失败的原因只给一句中文（会显示在知识库页和工具卡片上），原始报错记进日志；后台循环里写任务结果失败只记日志、循环继续。
-7. **文档处理**：单独一条任务队列（`TableJobQueue` 只领取、只在启动时放回自己有处理函数的种类），几分钟的大文档不挡住标题、记忆提取。每次只向量化 `knowledge.ingest_batch_size`（默认 2）段：本机向量模型一次只处理一个请求，批太大时对话里找相关记忆要等太久（每批 8 段时要等约 12 秒）。处理失败（解析不出文字、向量模型不可用、原文件不见了，以及意料之外的错误）只把文档状态改成"失败"并写明原因，不抛出、不自动重试，用户点"重新处理"；处理到一半服务停了（文档还是"处理中"），重启后接着做一次，连续中断两次就标为失败（文件可能大到把服务撑崩，不能在每次启动时重做）；处理开始时先删掉旧片段，重新处理、重启后重做都不会重复。处理途中文档被删，安静结束。
+7. **文档处理**：单独一条任务队列（`TableJobQueue` 只领取、只在启动时放回自己有处理函数的种类），几分钟的大文档不挡住标题、记忆提取。每次只向量化 `knowledge.ingest_batch_size`（默认 2）段：进程内的向量模型一次只算一批，批太大时对话里找相关记忆要等太久（每批 8 段时要等约 12 秒）。处理失败（解析不出文字、向量模型不可用、原文件不见了，以及意料之外的错误）只把文档状态改成"失败"并写明原因，不抛出、不自动重试，用户点"重新处理"；处理到一半服务停了（文档还是"处理中"），重启后接着做一次，连续中断两次就标为失败（文件可能大到把服务撑崩，不能在每次启动时重做）；处理开始时先删掉旧片段，重新处理、重启后重做都不会重复。处理途中文档被删，安静结束。
 8. **切块与出处**：解析时页码统一成 `<!-- page: N -->` 标记（PDF 的页、PPT 的幻灯片）；切块按标题记下章节路径（`第一章 考勤 › 1.1 请假`）；新的一页、新的一节总是另起一块（不带上一块的结尾），一节太长时才在节内按大小切开并重叠——出处的页码、章节才准。代码块（``` 或 ~~~ 之间）里以 # 开头的注释不是标题。向量化与分词用的文字带上文档名与章节，存下的内容只是片段本身。出处链接 `#kb-<条目 ID>` 由 `runtime/knowledge.py` 的 `citation` 生成，前端 `features/knowledge/citations.ts` 识别；两边的位置写法（章节路径 · 第 N 页）要保持一致。
 9. **格式与上限**：支持 PDF、Word、PowerPoint、Excel 的新格式与 CSV、Markdown、TXT、网页（`SUPPORTED_SUFFIXES`），其他格式上传时就拒绝（415，提示另存为新格式）；单个文档不超过 `max_upload_mb`（默认 50MB，与对话附件、技能包共用；解析在内存里进行）。扫描件解析不出文字，处理失败并说明原因。
 
@@ -352,7 +355,7 @@ MainAgent 每段运行 / 标题生成 / 记忆提取 → with call_context(会�
   ├→ LiteLLM 网关实现（_TaggedChatLiteLLM._client_params）：请求带 litellm_session_id 与 tags thread:/run:
   │    → 网关库 LiteLLM_SpendLogs 的 session_id、request_tags → 网关后台按会话核对
   ├→ 运行跟踪器 → usage 事件 → llm_usage（调用方 main / 子智能体名 / compaction / title / memory_extraction）
-  └→ 向量化实现每次请求后 on_usage → 组装根写 llm_usage（调用方 embedding，会话与运行取 current_call，文档入库时为空）
+  └→ 向量化实现每次调用后 on_usage（进程内实现报 token 数与耗时） → 组装根写 llm_usage（调用方 embedding，会话与运行取 current_call，文档入库时为空）
 GET /api/usage/summary?days=&tz= → UsageRepo.summary（llm_usage 的调用与 token；tool_usage 的工具、技能次数）+ ThreadRepo.titles（backend 补标题）→ 用量页
 make backup / make restore → deploy/backup.sh、restore.sh（compose exec 里 pg_dump / pg_restore；tar workdata 的个人文件）
 make doctor → deploy/doctor.py（宿主机上运行、只用标准库：compose ps / exec 与几个 GET 请求，只读）

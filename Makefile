@@ -77,12 +77,11 @@ e2e: test-up ## 端到端测试：用本机 Chrome 自动点一遍主要流程�
 smoke: ## 先行验证：调用真实模型，会产生少量费用（需先 make infra-up）
 	uv run pytest -m live -s agents/tests/live
 
-infra-up: ## 启动数据库、网关、Ollama；向量模型不存在时才下载
+infra-up: ## 只启动数据库和网关（在宿主机上跑冒烟测试时用）
 	$(PREPARE_DIRS)
-	$(DC) up -d --wait postgres litellm ollama
-	$(DC) run --rm ollama-init
+	$(DC) up -d --wait postgres litellm
 
-up: ## 一键启动全部服务（向量模型不存在时先下载），然后打开 http://127.0.0.1:8000；等同于在 deploy 目录里 podman compose up -d
+up: ## 一键启动全部服务，然后打开 http://127.0.0.1:8000（首次启动后台下载约 207 MB 的向量模型）；等同于在 deploy 目录里 podman compose up -d
 	$(PREPARE_DIRS)
 	$(START_BACKEND)
 
@@ -112,7 +111,7 @@ logs:
 	$(PREPARE_DIRS)
 	$(DC) logs -f --tail=100
 
-doctor: ## 体检（只读）：容器、后端、网关、模型、Ollama、数据库、.workdata 文件、磁盘与备份，逐项 ✓ / ✗
+doctor: ## 体检（只读）：容器、后端、网关、模型、向量模型文件、数据库、.workdata 文件、磁盘与备份，逐项 ✓ / ✗
 	$(PREPARE_DIRS)
 	@DC="$(DC)" uv run python deploy/doctor.py
 

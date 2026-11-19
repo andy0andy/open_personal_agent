@@ -123,6 +123,21 @@ class ModelAdmin:
             changed += (model.name,)
         return changed
 
+    async def names_with_upstream_prefix(self, prefix: str) -> tuple[str, ...] | None:
+        """网关数据库里上游以 prefix 开头的模型名（如 ollama/）。
+
+        清单里一个数据库里的模型都没有时返回 None：网关可能刚启动、还没载入。
+        网关出错时抛 UpstreamError。
+        """
+        listed = await self._gateway.list_models()
+        if not any(model.id is not None for model in listed):
+            return None
+        return tuple(
+            model.name
+            for model in listed
+            if model.id is not None and (model.upstream or "").startswith(prefix)
+        )
+
     def input_of(self, model: ModelInfo) -> ModelInput | None:
         """网关里的模型还原成页面的表单（来源按模型名前缀认出）；认不出来源时返回 None。"""
         upstream = model.upstream or ""

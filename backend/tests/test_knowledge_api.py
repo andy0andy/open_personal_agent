@@ -23,7 +23,7 @@ VOCABULARY = ["咖啡", "茶", "狗", "工作", "后端"]
 class _BrokenEmbedder:
     model = "broken"
 
-    async def embed(self, texts: Sequence[str]) -> list[list[float]]:
+    async def embed(self, texts: Sequence[str], *, kind: str = "document") -> list[list[float]]:
         raise UpstreamError("向量化服务不可用：connection refused")
 
 
@@ -127,7 +127,7 @@ async def test_invalid_input_is_rejected(make_client: ClientFactory, db: Pool) -
 async def test_unavailable_embedding_service_is_reported(
     make_client: ClientFactory, db: Pool
 ) -> None:
-    """向量模型（ollama）没启动：添加、检索返回 503 并说明原因；不用向量的列表照常可用。"""
+    """向量模型不可用：添加、检索返回 503 并说明原因；不用向量的列表照常可用。"""
     async with _client(make_client, db, _BrokenEmbedder()) as client:
         added = await client.post("/api/knowledge/items", json={"content": "用户养了一只狗"})
         assert added.status_code == 503

@@ -265,3 +265,57 @@ async def test_knowledge_documents_content_hash_column(db: Pool) -> None:
     assert column is not None
     assert column["is_nullable"] == "YES"
     assert any("content_hash" in index for index in indexes)
+
+
+async def test_embedding_becomes_768_and_nullable(db: Pool, alembic_config: Config) -> None:
+    """0019（D28）：向量列从 1024 维改成 768 维、可空；旧向量作废置空（启动后后台补算），
+    条目的其余内容不动；索引还在。降级改回 1024 维。"""
+
+    async def column() -> tuple[str, str]:
+        async with db.connection() as conn:
+            cur = await conn.execute(
+                "SELECT format_type(a.atttypid, a.atttypmod) AS type, a.attnotnull AS required "
+                "FROM pg_attribute a WHERE a.attrelid = 'knowledge_items'::regclass "
+                "AND a.attname = 'embedding'"
+            )
+            row = await cur.fetchone()
+        assert row is not None
+        return row["type"], "NOT NULL" if row["required"] else "NULL"
+
+    command.downgrade(alembic_config, "0018")
+    item_id = new_id()
+    try:
+        assert await column() == ("vector(1024)", "NOT NULL")
+        async with db.connection() as conn:
+            await conn.execute(
+                "INSERT INTO knowledge_items (id, kind, content, source, token_count, embedding, "
+                "embedding_model, search) VALUES (%s, 'memory', '用户喜欢喝咖啡', 'manual', 5, "
+                "%s::vector, 'embed-qwen3-0.6b', to_tsvector('simple', '用户 喜欢 喝 咖啡'))",
+                (item_id, "[" + ",".join(["0.1"] * 1024) + "]"),
+            )
+        command.upgrade(alembic_config, "0019")
+        assert await column() == ("vector(768)", "NULL")
+        async with db.connection() as conn:
+            cur = await conn.execute(
+                "SELECT content, embedding IS NULL AS empty, embedding_model "
+                "FROM knowledge_items WHERE id = %s",
+                (item_id,),
+            )
+            row = await cur.fetchone()
+            cur = await conn.execute(
+                "SELECT indexdef FROM pg_indexes WHERE indexname = 'knowledge_items_embedding'"
+            )
+            index = await cur.fetchone()
+        assert row == {
+            "content": "用户喜欢喝咖啡",
+            "empty": True,
+            "embedding_model": "embed-qwen3-0.6b",
+        }
+        assert index is not None
+        assert "hnsw" in index["indexdef"]
+        command.downgrade(alembic_config, "0018")
+        assert (await column())[0] == "vector(1024)"
+    finally:
+        async with db.connection() as conn:
+            await conn.execute("DELETE FROM knowledge_items WHERE id = %s", (item_id,))
+        command.upgrade(alembic_config, "head")

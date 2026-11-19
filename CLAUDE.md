@@ -9,7 +9,7 @@
 | 命令 | 作用 |
 |---|---|
 | `make install` | 严格按锁文件安装前后端依赖 |
-| `make infra-up` | 启动数据库、网关、Ollama，并拉取向量模型 |
+| `make infra-up` | 只启动数据库和网关（在宿主机上跑冒烟测试时用） |
 | `make up` | 一键启动全部服务，然后打开 http://127.0.0.1:8000（日常使用的地址；等同于 `cd deploy && podman compose up -d`） |
 | `make restart` | 改了 `.env` 后重建后端容器（用的是镜像里的代码） |
 | `make build` | 改了代码、依赖或前端界面后重新构建镜像并启动（后端不挂源码，2026-10-28 起） |
@@ -20,7 +20,7 @@
 | `make test-int` | 集成测试（自动启动测试数据库） |
 | `make e2e` | 端到端测试：本机 Chrome 自动点一遍主要流程（测试库 + 假模型，不花钱） |
 | `make smoke` | 真实模型先行验证（会产生少量费用） |
-| `make doctor` | 体检（只读）：容器、后端、网关、模型、Ollama、数据库、`.workdata` 文件、磁盘与备份，逐项 ✓ / ✗，✗ 下面写怎么修 |
+| `make doctor` | 体检（只读）：容器、后端、网关、模型、向量模型文件、数据库、`.workdata` 文件、磁盘与备份，逐项 ✓ / ✗，✗ 下面写怎么修 |
 | `make backup` / `make restore BACKUP=<名字>` | 备份到 `.workdata/backups/`（保留 7 份）/ 恢复（恢复前自动备份当前数据） |
 | `make down` | 停止所有服务 |
 

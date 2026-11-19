@@ -27,8 +27,15 @@ type Fetch = Callable[[str, Mapping[str, str]], tuple[int, str]]
 
 BACKEND = "http://127.0.0.1:8000"
 GATEWAY = "http://127.0.0.1:4000"
-SERVICES = ("postgres", "litellm", "ollama", "backend")
-EMBEDDING = "qwen3-embedding:0.6b"  # docker-compose.yml 里 ollama-init 下载的向量模型
+SERVICES = ("postgres", "litellm", "backend")
+# 后端进程里跑的向量模型（D28）：.workdata 下的目录与每个文件的字节数。体检只用标准库，不能导入
+# 后端的定义，所以在这里再写一份；deploy/tests/test_doctor.py 检查两处一致
+EMBEDDING_DIR = "models/embeddinggemma-300m-q4"
+EMBEDDING_FILES = {
+    "model_q4.onnx": 519322,
+    "model_q4.onnx_data": 196725760,
+    "tokenizer.json": 20323312,
+}
 TOKEN_HEADER = "X-Session-Token"
 HTTP_TIMEOUT = 5.0  # 秒：每个请求最多等这么久
 COMMAND_TIMEOUT = 10.0  # 秒：每条 compose 命令最多等这么久（平时不到 1 秒）
@@ -70,7 +77,7 @@ def main(
         backend,
         _gateway(fetch),
         models,
-        _ollama(run),
+        _embedding_model(workdata),
         _postgres(run),
         *files,
         _disk(workdata, disk_free or _disk_free),
@@ -201,22 +208,32 @@ def _models(fetch: Fetch, token: str) -> Result:
         return Result("✗", "模型", f"取不到模型列表（后端返回 {status}）", fix)
     chat = sum(model.get("mode", "chat") == "chat" for model in models)
     embedding = sum(model.get("mode") == "embedding" for model in models)
-    text = f"对话模型 {chat} 个、向量模型 {embedding} 个"
+    # 向量模型在后端进程里跑（D28），网关里不需要有；改用经网关的向量模型时才会数到
+    text = f"对话模型 {chat} 个" + (f"、向量模型 {embedding} 个" if embedding else "")
     if chat == 0:
         return Result("✗", "模型", text, "在模型页添加对话模型")
-    if embedding == 0:
-        return Result("✗", "模型", text, "在模型页添加向量模型（来源选“本机 Ollama”）")
     return Result("✓", "模型", text)
 
 
-def _ollama(run: Run) -> Result:
-    code, out = run(["exec", "-T", "ollama", "ollama", "list"])
-    if code != 0:
-        return Result("✗", "Ollama", "执行不了 ollama list（容器没在运行？）", "make infra-up")
-    if EMBEDDING not in out:
-        fix = "make infra-up（会自动下载，约 640 MB）"
-        return Result("✗", "Ollama", f"没有向量模型 {EMBEDDING}", fix)
-    return Result("✓", "Ollama", f"向量模型 {EMBEDDING} 已下载")
+def _embedding_model(workdata: Path) -> Result:
+    """向量模型文件齐不齐（只看在不在、大小对不对；哈希在下载时校验过）。"""
+    name = EMBEDDING_DIR.rsplit("/", 1)[-1]
+    fix = (
+        "后端启动后会自动下载（约 207 MB，make logs 看进度）；"
+        "网络慢时在 .env 里设 EMBEDDING_DOWNLOAD_BASE 换镜像站，再 make restart"
+    )
+    missing, wrong = [], []
+    for file, size in EMBEDDING_FILES.items():
+        path = workdata / EMBEDDING_DIR / file
+        if not path.is_file():
+            missing.append(file)
+        elif path.stat().st_size != size:
+            wrong.append(file)
+    if missing:
+        return Result("✗", "向量模型", f"还没下载好（缺 {'、'.join(missing)}）", fix)
+    if wrong:
+        return Result("✗", "向量模型", f"文件大小不对（{'、'.join(wrong)}）", fix)
+    return Result("✓", "向量模型", f"{name} 已下载")
 
 
 def _postgres(run: Run) -> Result:

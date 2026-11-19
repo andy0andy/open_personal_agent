@@ -258,7 +258,7 @@ async def test_default_chat_model_cannot_become_embedding(make_client: ClientFac
         await client.put("/api/settings/models/default", json={"name": "glm-5"})
         resp = await client.put(
             "/api/settings/models/glm-5",
-            json=_input(mode="embedding", source="ollama", upstream_id="bge-m3"),
+            json=_input(mode="embedding", upstream_id="bge-m3"),
         )
         assert resp.status_code == 409
         assert resp.json()["detail"] == "这是默认对话模型，不能改成向量模型：先换一个默认对话模型"

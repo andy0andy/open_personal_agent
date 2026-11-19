@@ -21,18 +21,20 @@ from agents.main_agent.knowledge import (
 )
 from agents.main_agent.knowledge.tokens import warm_up
 from agents.main_agent.models import (
+    ONNX_MODELS,
     Embedder,
     EmbeddingUsage,
     LiteLLMProxyEmbedder,
     LiteLLMProxyGateway,
     ModelGateway,
+    OnnxEmbedder,
     current_call,
 )
 from agents.main_agent.runtime import MainAgent, SkillCatalog, UsageReported
 from agents.main_agent.usage import UsageRepo
 from agents.main_agent.workspace import LocalSandbox, LocalWorkspace, Workspace
 from common.db import Pool
-from common.errors import UpstreamError
+from common.errors import InvalidConfigError, UpstreamError
 from config import Settings
 
 logger = logging.getLogger(__name__)
@@ -59,7 +61,18 @@ _WORKSPACES: dict[str, Callable[[Settings], Workspace]] = {
 
 type UsageRecorder = Callable[[EmbeddingUsage], Awaitable[None]]
 
+
+def _onnx_embedder(settings: Settings, on_usage: UsageRecorder) -> Embedder:
+    """后端进程里跑的向量模型（D28）；模型文件由后端启动后在后台下载到 .workdata/models/。"""
+    name = settings.knowledge.embedding_model
+    if (spec := ONNX_MODELS.get(name)) is None:
+        known = "、".join(ONNX_MODELS)
+        raise InvalidConfigError(f"没有这个进程内的向量模型：{name}（可用：{known}）")
+    return OnnxEmbedder(settings.models_dir / spec.name, spec, on_usage=on_usage)
+
+
 _EMBEDDERS: dict[str, Callable[[Settings, UsageRecorder], Embedder]] = {
+    "onnx": _onnx_embedder,
     "litellm_proxy": lambda s, on_usage: LiteLLMProxyEmbedder(
         s.litellm_base_url,
         s.litellm_master_key.get_secret_value(),

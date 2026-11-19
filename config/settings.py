@@ -28,7 +28,7 @@ class AdaptersConfig(BaseModel):
 
     model_gateway: str = "litellm_proxy"
     workspace: str = "local"
-    embedder: str = "litellm_proxy"
+    embedder: str = "onnx"  # 后端进程里跑（D28）；litellm_proxy：经网关调向量模型
     knowledge_index: str = "pgvector"
     doc_parser: str = "markitdown"
     blob_storage: str = "local_disk"
@@ -52,13 +52,14 @@ class WorkspaceConfig(BaseModel):
 class KnowledgeConfig(BaseModel):
     """统一知识库与记忆（设计文档 8）。"""
 
-    embedding_model: str = (
-        "embed-qwen3-0.6b"  # 网关里的向量模型名（默认清单 config/seed/models.yaml，在模型页管理）
-    )
+    # adapters.embedder 为 onnx 时是进程内模型的名字（agents 里 ONNX_MODELS 的键，D28）；
+    # 为 litellm_proxy 时是网关里的向量模型名
+    embedding_model: str = "embeddinggemma-300m-q4"
     # 设置页上能改（D22）：取值范围挡住会让对话或文档整体失效的值（终审 I3）
     recall_top_k: int = Field(default=5, ge=0)  # 每次带上的相关记忆最多几条；0 表示不带
-    # 相关记忆的相似度下限：qwen3 0.6B 上真正相关的记忆只有 0.34～0.64，
-    # 设计文档的 0.75 会什么都召回不到（M3a 计划的先行探测）
+    # 相关记忆的相似度下限：EmbeddingGemma 上相关的记忆多在 0.4～0.6、无关的问句多在 0.2 上下
+    # （D28 的先行验证：0.3 能留住 98.6% 的相关记忆、挡掉 86.7% 的无关问句）；
+    # 设计文档的 0.75 会什么都召回不到
     recall_min_similarity: float = Field(default=0.3, ge=0, le=1)
     # 召回最多等几秒（向量模型卡住或冷启动时），超时就不带相关记忆
     recall_timeout: float = Field(default=5.0, gt=0)
@@ -101,14 +102,6 @@ class ModelsConfig(BaseModel):
             api_base="os.environ/UPSTREAM_GATEWAY_URL",
             api_key="os.environ/UPSTREAM_GATEWAY_KEY",
         ),
-        # 与默认模型清单 config/seed/models.yaml 里的向量模型（source: ollama）一致
-        ModelSource(
-            id="ollama",
-            label="本机 Ollama",
-            mode="embedding",
-            prefix="ollama/",
-            api_base="http://ollama:11434",
-        ),
     ]
 
 
@@ -142,6 +135,9 @@ class Settings(BaseSettings):
     litellm_base_url: str = "http://127.0.0.1:4000"
     litellm_master_key: SecretStr = SecretStr(DEFAULT_LITELLM_MASTER_KEY)
     workdata_dir: Path = ROOT_DIR / ".workdata"
+    # 向量模型从哪下载（D28）：网络慢时换成镜像站；文件按固定的哈希校验，换地址不影响安全。
+    # 只从环境变量读（EMBEDDING_DOWNLOAD_BASE），不进设置页
+    embedding_download_base: str = "https://huggingface.co"
     adapters: AdaptersConfig = AdaptersConfig()
     agent: AgentConfig = AgentConfig()
     # 上传上限（MB）：对话附件、知识库文档、技能包共用一个（设计 2026-10-19 4.5）
@@ -155,6 +151,11 @@ class Settings(BaseSettings):
     @property
     def config_dir(self) -> Path:
         return self.workdata_dir / "config"
+
+    @property
+    def models_dir(self) -> Path:
+        """向量模型文件（D28）：不进仓库和镜像，后端启动后在后台下载到这里；不进备份。"""
+        return self.workdata_dir / "models"
 
     @property
     def mcp_servers_file(self) -> Path:
@@ -204,7 +205,9 @@ class SettingSpec(BaseModel):
     note: str | None = None
 
 
-_ADAPTERS_NOTE = "目前每项只有一种实现"
+_ADAPTERS_NOTE = "目前只有一种实现"
+# 向量化是唯一有两种实现的（D28）；换实现要改 .env 并重建全部向量，步骤在 D28 里
+_EMBEDDER_NOTE = "onnx：在后端进程里跑（默认）；litellm_proxy：经网关调向量模型"
 
 # 设置页按这个顺序列出；只有默认对话模型立即生效（设计 2026-10-19 4.7）
 SETTING_SPECS: tuple[SettingSpec, ...] = (
@@ -252,7 +255,7 @@ SETTING_SPECS: tuple[SettingSpec, ...] = (
             label=f"{label}的实现",
             apply="restart",
             editable=False,
-            note=_ADAPTERS_NOTE,
+            note=_EMBEDDER_NOTE if name == "embedder" else _ADAPTERS_NOTE,
         )
         for name, label in (
             ("model_gateway", "模型网关"),

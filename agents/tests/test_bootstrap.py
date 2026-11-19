@@ -3,14 +3,20 @@ from pathlib import Path
 
 import pytest
 
-from agents.main_agent.bootstrap import _WORKSPACES, _embedding_usage, build_agent
+from agents.main_agent.bootstrap import _EMBEDDERS, _WORKSPACES, _embedding_usage, build_agent
 from agents.main_agent.knowledge import DocumentLibrary, PgKnowledgeStore
-from agents.main_agent.models import EmbeddingUsage, LiteLLMProxyGateway, call_context
+from agents.main_agent.models import (
+    EmbeddingUsage,
+    LiteLLMProxyGateway,
+    OnnxEmbedder,
+    call_context,
+)
 from agents.main_agent.usage import UsageRepo
 from agents.main_agent.workspace import LocalWorkspace
 from common.db import Pool
+from common.errors import InvalidConfigError, UpstreamError
 from config import Settings
-from config.settings import AdaptersConfig, AgentConfig
+from config.settings import AdaptersConfig, AgentConfig, KnowledgeConfig
 
 pytestmark = pytest.mark.integration
 
@@ -70,3 +76,32 @@ async def test_embedding_usage_is_recorded_under_the_current_call(db: Pool) -> N
         (None, None, 2),
         (None, None, 3),
     ]
+
+
+async def _no_usage(usage: EmbeddingUsage) -> None:
+    return None
+
+
+async def test_onnx_embedder_is_the_default(tmp_path: Path) -> None:
+    """默认在后端进程里跑向量模型（D28）：装配时不加载模型、不联网；模型文件在
+    .workdata/models/<模型名>/，还没下好时调用给出看得懂的原因。"""
+    settings = Settings(
+        database_url="postgresql://unused", litellm_master_key="sk-test", workdata_dir=tmp_path
+    )
+    embedder = _EMBEDDERS[settings.adapters.embedder](settings, _no_usage)
+    assert isinstance(embedder, OnnxEmbedder)
+    assert embedder.model == "embeddinggemma-300m-q4"
+    assert embedder._model_dir == tmp_path / "models" / "embeddinggemma-300m-q4"
+    with pytest.raises(UpstreamError, match="向量模型还没下载好"):
+        await embedder.embed(["a"])
+
+
+def test_unknown_onnx_model_is_a_config_error(tmp_path: Path) -> None:
+    settings = Settings(
+        database_url="postgresql://unused",
+        litellm_master_key="sk-test",
+        workdata_dir=tmp_path,
+        knowledge=KnowledgeConfig(embedding_model="no-such-model"),
+    )
+    with pytest.raises(InvalidConfigError, match="embeddinggemma-300m-q4"):
+        _EMBEDDERS["onnx"](settings, _no_usage)

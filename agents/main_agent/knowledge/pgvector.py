@@ -37,8 +37,6 @@ _COLUMNS = (
 _NOT_FLAGGED = "(i.suspicious IS NULL OR i.trusted)"
 _FROM = "FROM knowledge_items i LEFT JOIN knowledge_documents d ON d.id = i.document_id"
 _SELECT = f"SELECT {_COLUMNS} {_FROM}"
-# Qwen3 向量模型对"查询"加一句任务说明效果更好（设计文档 8.5）；存进去的条目本身不加
-QUERY_PREFIX = "Instruct: 根据问题找出相关的知识与记忆\nQuery: "
 _RRF_K = 60  # 倒数排名融合的常数：排名靠前的差距被拉开，又不至于一家独大
 _CANDIDATES = 4  # 每路先各取 top_k 的几倍再融合
 
@@ -82,9 +80,9 @@ async def _scan_past_filters(conn: AsyncConnection[Any]) -> None:
     await conn.execute("SET LOCAL hnsw.iterative_scan = relaxed_order")
 
 
-def _chunk_text(title: str, chunk: Chunk) -> str:
+def _chunk_text(title: str, section_path: str | None, content: str) -> str:
     """向量化与分词用的文字带上文档名与章节：按章节名也能找到片段。"""
-    return f"《{title}》{chunk.section_path or ''}\n{chunk.content}"
+    return f"《{title}》{section_path or ''}\n{content}"
 
 
 class PgKnowledgeStore:
@@ -127,7 +125,7 @@ class PgKnowledgeStore:
     ) -> list[KnowledgeItem]:
         if not chunks:
             return []
-        texts = [_chunk_text(title, chunk) for chunk in chunks]
+        texts = [_chunk_text(title, chunk.section_path, chunk.content) for chunk in chunks]
         vectors = await self._embedder.embed(texts)
         rows = [
             (
@@ -294,14 +292,15 @@ class PgKnowledgeStore:
         top_k: int = 5,
         include_suspicious: bool = False,
     ) -> list[KnowledgeHit]:
-        [vector] = await self._embedder.embed([QUERY_PREFIX + query])
+        [vector] = await self._embedder.embed([query], kind="query")
         where, params = _filters(kinds=kinds, tags=tags, hide_flagged=not include_suspicious)
         candidates = top_k * _CANDIDATES
         words = " OR ".join(await asyncio.to_thread(search_tokens, query))
         async with self._pool.connection() as conn, conn.transaction():
             await _scan_past_filters(conn)
             cur = await conn.execute(
-                f"SELECT i.id FROM knowledge_items i WHERE {where} "
+                # 还没补上向量的条目（D28）不参与按意思检索，按关键词那一路照常
+                f"SELECT i.id FROM knowledge_items i WHERE {where} AND i.embedding IS NOT NULL "
                 "ORDER BY i.embedding <=> %s::vector LIMIT %s",
                 (*params, _vector(vector), candidates),
             )
@@ -329,12 +328,13 @@ class PgKnowledgeStore:
         ]
 
     async def recall(self, query: str, *, top_k: int, min_similarity: float) -> list[KnowledgeHit]:
-        [vector] = await self._embedder.embed([QUERY_PREFIX + query])
+        [vector] = await self._embedder.embed([query], kind="query")
         async with self._pool.connection() as conn, conn.transaction():
             await _scan_past_filters(conn)
             cur = await conn.execute(
                 f"SELECT {_COLUMNS}, 1 - (i.embedding <=> %s::vector) AS similarity {_FROM} "
                 f"WHERE i.kind = 'memory' AND NOT i.pinned AND {_NOT_FLAGGED} "
+                "AND i.embedding IS NOT NULL "
                 "ORDER BY i.embedding <=> %s::vector LIMIT %s",
                 (_vector(vector), _vector(vector), top_k),
             )
@@ -344,6 +344,36 @@ class PgKnowledgeStore:
             for row in rows
             if row["similarity"] >= min_similarity
         ]
+
+    async def reembed_missing(self, *, limit: int = 20) -> int:
+        async with self._pool.connection() as conn:
+            cur = await conn.execute(
+                "SELECT i.id, i.kind, i.content, i.section_path, d.title AS document_title "
+                f"{_FROM} WHERE i.embedding IS NULL ORDER BY i.created_at, i.id LIMIT %s",
+                (limit,),
+            )
+            rows = await cur.fetchall()
+        if not rows:
+            return 0
+        # 和入库时用同样的文字：记忆是内容本身，文档片段带文档名与章节
+        texts = [
+            row["content"]
+            if row["kind"] != "document_chunk"
+            else _chunk_text(row["document_title"] or "", row["section_path"], row["content"])
+            for row in rows
+        ]
+        vectors = await self._embedder.embed(texts)
+        done = 0
+        async with self._pool.connection() as conn:
+            for row, vector in zip(rows, vectors, strict=True):
+                # 只补还空着的：算的这会儿被改了内容的条目已经有新向量，不要盖掉
+                cur = await conn.execute(
+                    "UPDATE knowledge_items SET embedding = %s::vector, embedding_model = %s "
+                    "WHERE id = %s AND embedding IS NULL",
+                    (_vector(vector), self._embedder.model, row["id"]),
+                )
+                done += cur.rowcount
+        return done
 
     async def _items(self, ids: list[UUID]) -> list[KnowledgeItem]:
         if not ids:

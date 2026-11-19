@@ -19,7 +19,7 @@ from agents.main_agent.knowledge import (
     ParsedDocument,
     PgKnowledgeStore,
 )
-from agents.main_agent.models import Embedder
+from agents.main_agent.models import Embedder, EmbedKind
 from agents.tests.fakes import FakeEmbedder
 from common.db import Pool
 from common.errors import (
@@ -43,13 +43,17 @@ class _CountingEmbedder(FakeEmbedder):
         super().__init__(VOCABULARY)
         self.batches: list[int] = []
 
-    async def embed(self, texts: Sequence[str]) -> list[list[float]]:
+    async def embed(
+        self, texts: Sequence[str], *, kind: EmbedKind = "document"
+    ) -> list[list[float]]:
         self.batches.append(len(texts))
-        return await super().embed(texts)
+        return await super().embed(texts, kind=kind)
 
 
 class _BrokenEmbedder(FakeEmbedder):
-    async def embed(self, texts: Sequence[str]) -> list[list[float]]:
+    async def embed(
+        self, texts: Sequence[str], *, kind: EmbedKind = "document"
+    ) -> list[list[float]]:
         raise UpstreamError("向量化服务不可用：连不上模型网关")
 
 

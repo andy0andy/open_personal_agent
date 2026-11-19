@@ -122,10 +122,16 @@ def test_backend_runs_the_image_code() -> None:
     assert "--reload" not in str(backend.get("command", ""))
 
 
-def test_backend_waits_for_embedding_model() -> None:
-    """不经 make 也会先下载向量模型：后端等 ollama-init 跑完再启动。"""
-    depends = _services()["backend"]["depends_on"]
-    assert depends["ollama-init"] == {"condition": "service_completed_successfully"}
+def test_only_three_services_and_no_ollama() -> None:
+    """向量模型在后端进程里跑（D28）：没有 Ollama 的服务和数据卷，后端只等数据库和网关。"""
+    path = ROOT / "deploy" / "docker-compose.yml"
+    compose = yaml.safe_load(path.read_text(encoding="utf-8"))
+    services = compose["services"]
+    default = sorted(name for name, service in services.items() if "profiles" not in service)
+    assert default == ["backend", "litellm", "postgres"]
+    assert sorted(services["backend"]["depends_on"]) == ["litellm", "postgres"]
+    assert list(compose["volumes"]) == ["pgdata"]
+    assert "ollama" not in path.read_text(encoding="utf-8").lower()
 
 
 def test_compose_finds_root_env() -> None:
@@ -145,13 +151,6 @@ def test_bundles_never_enter_build_context() -> None:
     """打包出的镜像文件（dist/，几个 GB）不进构建上下文，否则每次构建都要传一遍（审查 I1）。"""
     ignored = (ROOT / ".dockerignore").read_text(encoding="utf-8").splitlines()
     assert "dist" in ignored
-
-
-def test_embedding_download_failure_does_not_stop_backend() -> None:
-    """向量模型下不下来（没联网）时 ollama-init 也正常结束：后端照常起来、能对话，
-    知识库要等模型下好（make doctor 会报）；否则 make restart 会把正在用的后端弄停（审查 I3）。"""
-    [command] = _services()["ollama-init"]["command"]
-    assert command.rstrip().endswith("true; }")
 
 
 def test_starts_without_env() -> None:

@@ -15,7 +15,7 @@ make install              # 严格按锁文件安装 Python 与前端依赖
 
 ```bash
 podman machine start      # 电脑重启后需要；已在运行会提示 already running
-make up                   # 一键启动：数据库、模型网关、Ollama、后端（含打包好的前端）
+make up                   # 一键启动：数据库、模型网关、后端（含打包好的前端）
 # 不用 make 也行：cd deploy && podman compose up -d（docker 同理）
 ```
 
@@ -30,7 +30,9 @@ mkdir -p .workdata/workspace .workdata/shared
 cd deploy && docker compose up -d
 ```
 
-要求 Docker Compose 2.24 及以上。第一次会从源码构建后端镜像（几分钟）并下载约 640MB 的向量模型。注意事项见使用指南第 2 节。
+要求 Docker Compose 2.24 及以上。第一次会从源码构建后端镜像（几分钟）；启动后后端在后台下载约 207 MB 的向量模型。注意事项见使用指南第 2 节。
+
+**向量模型**（把文字变成向量，知识库和记忆靠它“按意思检索”）在后端进程里运行，不另起服务（D28）。用的是谷歌的 [EmbeddingGemma 300M](https://huggingface.co/google/embeddinggemma-300m) 的 ONNX 量化版（[onnx-community/embeddinggemma-300m-ONNX](https://huggingface.co/onnx-community/embeddinggemma-300m-ONNX)，约 207 MB），它适用 [Gemma 使用条款](https://ai.google.dev/gemma/terms)，不是标准的开源许可。模型不随本仓库和镜像分发：后端第一次启动后在后台下载到 `.workdata/models/` 并按固定的哈希校验，下载期间照常能对话，知识库稍后可用。网络慢时在 `.env` 里设 `EMBEDDING_DOWNLOAD_BASE` 换成镜像站，再 `make restart`。 从用 Ollama 的旧版本升级后，原来的 Ollama 容器、数据卷和镜像要手工清一次（约 4.8 GB），命令见使用指南第 2 节。
 
 改了东西后：
 

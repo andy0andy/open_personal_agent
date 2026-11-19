@@ -6,7 +6,7 @@
 |---|---|---|---|
 | 单元测试（含契约测试、离线先行验证） | 无 | `make test`（`make check` 也会跑） | 什么都不需要 |
 | 集成测试 | `@pytest.mark.integration` | `make test-int` | 自动启动 compose `test` 配置组的 `postgres-test`（端口 55432）；用完可 `make test-down` 关掉 |
-| 真实模型冒烟测试 | `@pytest.mark.live` | `make smoke` | `make infra-up` + `.env` 中的模型密钥；会产生少量费用 |
+| 真实模型冒烟测试 | `@pytest.mark.live` | `make smoke` | `make infra-up`（只起数据库与网关）+ `.env` 中的模型密钥；真实向量模型的测试（`live/test_onnx_embedding.py`）要 `.workdata/models/` 里有模型文件，没有时跳过；会产生少量费用 |
 | 前端单元测试 | — | `cd frontend && pnpm test` | 什么都不需要 |
 | 端到端测试 | — | `make e2e` | 自动启动 `postgres-test`；本机已装的 Chrome（Playwright 用 `channel: "chrome"`，不另下载浏览器） |
 

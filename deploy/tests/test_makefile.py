@@ -30,10 +30,17 @@ def test_restart_prepares_shared_dir() -> None:
 
 def test_up_is_one_compose_command() -> None:
     """make up 只是 compose 启动的快捷命令（设计 2026-10-28）：
-    向量模型由 compose 里的依赖先下好。"""
+    向量模型由后端启动后在后台下载（D28）。"""
     out = _dry_run("up")
     assert "up -d --wait backend" in out
-    assert "run --rm ollama-init" not in out
+    assert "ollama" not in out
+
+
+def test_infra_up_starts_only_database_and_gateway() -> None:
+    """宿主机上跑测试、冒烟时只要数据库和网关：没有 Ollama 了（D28）。"""
+    out = _dry_run("infra-up")
+    assert "up -d --wait postgres litellm" in out
+    assert "ollama" not in out
 
 
 def test_bundle_calls_the_script() -> None:

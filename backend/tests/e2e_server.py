@@ -42,7 +42,7 @@ from backend.api.deps import build_services
 from backend.main import create_app
 from common.db import create_pool
 from config import Settings
-from config.settings import ROOT_DIR, AgentConfig, KnowledgeConfig
+from config.settings import ROOT_DIR, AdaptersConfig, AgentConfig, KnowledgeConfig
 
 TEST_HOST = "127.0.0.1:55432"  # compose 里的 postgres-test（make test-up）
 E2E_DATABASE_URL = f"postgresql://agent:agent@{TEST_HOST}/agent_e2e"
@@ -178,6 +178,8 @@ def build_e2e_app(database_url: str = E2E_DATABASE_URL) -> FastAPI:
         litellm_master_key="sk-e2e",
         workdata_dir=workdata,
         agent=AgentConfig(default_model="fake-model"),
+        # 端到端测试的向量模型在假网关上（embed-fake），不加载进程内的真模型
+        adapters=AdaptersConfig(embedder="litellm_proxy"),
         knowledge=KnowledgeConfig(auto_extract=False, embedding_model="embed-fake"),
     )
 

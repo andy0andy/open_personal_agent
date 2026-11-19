@@ -7,10 +7,19 @@ from collections.abc import Callable, Mapping
 from pathlib import Path
 
 import pytest
-import yaml
 
+from agents.main_agent.models import ONNX_MODELS
 from config.settings import KnowledgeConfig
-from deploy.doctor import BACKEND, EMBEDDING, GATEWAY, Run, compose_runner, http_fetch, main
+from deploy.doctor import (
+    BACKEND,
+    EMBEDDING_DIR,
+    EMBEDDING_FILES,
+    GATEWAY,
+    Run,
+    compose_runner,
+    http_fetch,
+    main,
+)
 
 ROOT = Path(__file__).resolve().parents[2]
 TOKEN = "tok-secret-123"
@@ -21,19 +30,12 @@ class Fake:
     """一套全部正常的服务：测试里改掉其中一项来模拟故障。"""
 
     def __init__(self) -> None:
-        self.states = dict.fromkeys(("backend", "litellm", "ollama", "postgres"), "running")
+        self.states = dict.fromkeys(("backend", "litellm", "postgres"), "running")
         self.commands: dict[str, tuple[int, str]] = {
-            "ollama": (
-                0,
-                "NAME                    ID      SIZE\nqwen3-embedding:0.6b    ac6d    639 MB\n",
-            ),
             "postgres": (0, "/var/run/postgresql:5432 - accepting connections\n"),
         }
-        models = [
-            {"name": "claude-sonnet", "mode": "chat"},
-            {"name": "deepseek", "mode": "chat"},
-            {"name": "embed-qwen3-0.6b", "mode": "embedding"},
-        ]
+        # 向量模型在后端进程里跑（D28），网关里只有对话模型
+        models = [{"name": "claude-sonnet", "mode": "chat"}, {"name": "deepseek", "mode": "chat"}]
         files = [
             {"path": ".workdata/config/mcp_servers.yaml", "state": "ok", "detail": None},
             {"path": ".workdata/config/skills.yaml", "state": "missing", "detail": None},
@@ -61,7 +63,18 @@ class Fake:
         return self.responses[url]
 
 
+def _model_files(workdata: Path) -> Path:
+    """按体检认的字节数造出向量模型的占位文件（只看在不在、大小对不对）。"""
+    folder = workdata / EMBEDDING_DIR
+    folder.mkdir(parents=True)
+    for name, size in EMBEDDING_FILES.items():
+        with (folder / name).open("wb") as handle:
+            handle.truncate(size)
+    return folder
+
+
 def _workdata(tmp_path: Path, *backups: str) -> Path:
+    _model_files(tmp_path)
     for name in backups:
         (tmp_path / "backups" / name).mkdir(parents=True)
         (tmp_path / "backups" / name / "manifest.txt").write_text("备份清单\n", encoding="utf-8")
@@ -82,9 +95,19 @@ def test_doctor_all_good(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> 
     assert _check(fake, workdata) == 0
     out = capsys.readouterr().out
     assert "✗" not in out
-    for item in ("容器", "后端", "网关", "模型", "Ollama", "PostgreSQL", ".workdata 文件", "磁盘"):
+    for item in (
+        "容器",
+        "后端",
+        "网关",
+        "模型",
+        "向量模型",
+        "PostgreSQL",
+        ".workdata 文件",
+        "磁盘",
+    ):
         assert f"✓ {item}：" in out
-    assert "✓ 模型：对话模型 2 个、向量模型 1 个" in out
+    assert "✓ 模型：对话模型 2 个\n" in out  # 网关里不需要有向量模型（D28）
+    assert "✓ 向量模型：embeddinggemma-300m-q4 已下载" in out
     assert "还没有：.workdata/config/skills.yaml" in out
     assert "✓ 磁盘：剩余 120.0 GB" in out
     assert "✓ 备份：2 份，最近一次 2026-10-24 03:06（pre-restore-20261024-030639）" in out
@@ -114,14 +137,8 @@ def _session_broken(fake: Fake) -> None:
     fake.responses[f"{BACKEND}/api/session"] = (500, "Internal Server Error")
 
 
-def _no_embedding_model(fake: Fake) -> None:
-    fake.commands["ollama"] = (0, "NAME    ID    SIZE    MODIFIED\n")
-
-
-def _no_embedding_in_gateway(fake: Fake) -> None:
-    """网关里没有向量模型（D22 之后模型都在网关数据库里，积压小问题 F20）。"""
-    models = [{"name": "claude-sonnet", "mode": "chat"}, {"name": "deepseek", "mode": "chat"}]
-    fake.responses[f"{BACKEND}/api/models"] = (200, json.dumps(models))
+def _no_chat_model(fake: Fake) -> None:
+    fake.responses[f"{BACKEND}/api/models"] = (200, "[]")
 
 
 def _broken_file(fake: Fake) -> None:
@@ -167,14 +184,7 @@ def _garbage(fake: Fake) -> None:
                 "✗ .workdata 文件：取不到会话令牌（/api/session 返回 500）\n  → make restart",
             ],
         ),
-        (_no_embedding_model, ["✗ Ollama：没有向量模型 qwen3-embedding:0.6b\n  → make infra-up"]),
-        (
-            _no_embedding_in_gateway,
-            [
-                "✗ 模型：对话模型 2 个、向量模型 0 个\n"
-                "  → 在模型页添加向量模型（来源选“本机 Ollama”）"
-            ],
-        ),
+        (_no_chat_model, ["✗ 模型：对话模型 0 个\n  → 在模型页添加对话模型"]),
         (
             _broken_file,
             [
@@ -186,7 +196,6 @@ def _garbage(fake: Fake) -> None:
             _no_compose,
             [
                 "✗ 容器：查不到容器状态\n  → ",
-                "✗ Ollama：",
                 "✗ PostgreSQL：",
             ],
         ),
@@ -247,15 +256,46 @@ def test_doctor_times_out_instead_of_hanging() -> None:
     assert compose_runner(stuck, timeout=0.2)(["ps"]) == (124, "超过 0.2 秒没有结束")
 
 
-def test_embedding_name_matches_compose_and_seed() -> None:
-    """体检认的向量模型、ollama-init 下载的、默认模型清单里网关调用的，三处是同一个
-    （积压小问题 G11）。"""
-    compose = yaml.safe_load((ROOT / "deploy" / "docker-compose.yml").read_text(encoding="utf-8"))
-    [command] = compose["services"]["ollama-init"]["command"]
-    assert f"ollama pull {EMBEDDING}" in command
-    seed = yaml.safe_load((ROOT / "config" / "seed" / "models.yaml").read_text(encoding="utf-8"))
-    name = KnowledgeConfig().embedding_model
-    assert [m["upstream_id"] for m in seed["models"] if m["name"] == name] == [EMBEDDING]
+def test_gateway_embedding_models_are_counted_when_present(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """改用经网关的向量模型时（adapters.embedder: litellm_proxy）照样数得出来。"""
+    fake = Fake()
+    models = [{"name": "claude-sonnet", "mode": "chat"}, {"name": "embed-x", "mode": "embedding"}]
+    fake.responses[f"{BACKEND}/api/models"] = (200, json.dumps(models))
+    assert _check(fake, _workdata(tmp_path, "20261024-030639")) == 0
+    assert "✓ 模型：对话模型 1 个、向量模型 1 个" in capsys.readouterr().out
+
+
+def test_missing_embedding_model_file(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    """向量模型还没下好（首次启动在后台下载，或没联网）：说明缺哪个、怎么办。"""
+    fake = Fake()
+    workdata = _workdata(tmp_path, "20261024-030639")
+    (workdata / EMBEDDING_DIR / "model_q4.onnx_data").unlink()
+    assert _check(fake, workdata) == 1
+    out = capsys.readouterr().out
+    assert "✗ 向量模型：还没下载好（缺 model_q4.onnx_data）\n  → 后端启动后会自动下载" in out
+    assert "EMBEDDING_DOWNLOAD_BASE" in out
+
+
+def test_embedding_model_file_with_wrong_size(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    fake = Fake()
+    workdata = _workdata(tmp_path, "20261024-030639")
+    (workdata / EMBEDDING_DIR / "tokenizer.json").write_bytes(b"{}")
+    assert _check(fake, workdata) == 1
+    assert "✗ 向量模型：文件大小不对（tokenizer.json）\n  → " in capsys.readouterr().out
+
+
+def test_doctor_knows_the_same_model_files() -> None:
+    """体检认的向量模型目录、文件名、字节数，和后端用的是同一份（体检只用标准库，
+    不能直接导入后端的定义；积压小问题 G11 的做法）。"""
+    spec = ONNX_MODELS[KnowledgeConfig().embedding_model]
+    assert f"models/{spec.name}" == EMBEDDING_DIR
+    assert {name: file.size for name, file in spec.files.items()} == EMBEDDING_FILES
+    compose = (ROOT / "deploy" / "docker-compose.yml").read_text(encoding="utf-8")
+    assert "ollama" not in compose.lower()
 
 
 def _podman_ps(fake: Fake, backend_status: str = "Up 2 hours (healthy)") -> Run:

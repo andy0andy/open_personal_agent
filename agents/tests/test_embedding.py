@@ -53,13 +53,42 @@ async def test_unavailable_gateway_or_wrong_size_is_explained() -> None:
         await embedder.embed(["a"])
 
     def small(request: httpx.Request) -> httpx.Response:
-        return httpx.Response(200, json={"data": [{"index": 0, "embedding": [0.1] * 768}]})
+        return httpx.Response(200, json={"data": [{"index": 0, "embedding": [0.1] * 1024}]})
 
     embedder = LiteLLMProxyEmbedder(
         "http://gateway:4000", "k", "m", transport=httpx.MockTransport(small)
     )
-    with pytest.raises(UpstreamError, match="向量维度应为 1024，实际为 768"):
+    with pytest.raises(UpstreamError, match="向量维度应为 768，实际为 1024"):
         await embedder.embed(["a"])
+
+
+async def test_prefix_follows_kind() -> None:
+    """查询和文档各加各的前缀（D28：前缀跟着模型走，由向量化实现来加）；不配前缀时原样发出。"""
+    inputs: list[list[str]] = []
+
+    def gateway(request: httpx.Request) -> httpx.Response:
+        texts = json.loads(request.content)["input"]
+        inputs.append(texts)
+        vector = [0.5] * EMBEDDING_DIMENSIONS
+        return httpx.Response(
+            200, json={"data": [{"index": i, "embedding": vector} for i in range(len(texts))]}
+        )
+
+    transport = httpx.MockTransport(gateway)
+    prefixed = LiteLLMProxyEmbedder(
+        "http://gateway:4000",
+        "k",
+        "m",
+        transport=transport,
+        query_prefix="Q:",
+        document_prefix="D:",
+    )
+    await prefixed.embed(["一"], kind="query")
+    await prefixed.embed(["一"], kind="document")
+    await prefixed.embed(["一"])
+    plain = LiteLLMProxyEmbedder("http://gateway:4000", "k", "m", transport=transport)
+    await plain.embed(["一"], kind="query")
+    assert inputs == [["Q:一"], ["D:一"], ["D:一"], ["一"]]
 
 
 def _refuse(request: httpx.Request) -> httpx.Response:

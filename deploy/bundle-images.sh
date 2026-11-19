@@ -40,7 +40,7 @@ fi
 
 if [ "${SKIP_BUILD:-}" != "1" ]; then
   "${compose[@]}" build backend
-  "${compose[@]}" pull postgres litellm ollama
+  "${compose[@]}" pull postgres litellm
 elif [ -n "${PLATFORM:-}" ]; then
   echo "注意：SKIP_BUILD=1 时不构建也不拉取，PLATFORM 不起作用，存的是本机已有的镜像" >&2
 fi

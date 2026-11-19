@@ -20,16 +20,28 @@ from agents.main_agent.models.embedding import (
     EMBEDDING_DIMENSIONS,
     Embedder,
     EmbeddingUsage,
+    EmbedKind,
     LiteLLMProxyEmbedder,
 )
 from agents.main_agent.models.estimate import estimate_input_tokens, estimate_text_tokens
 from agents.main_agent.models.failures import ErrorKind, classify_failure
 from agents.main_agent.models.litellm_proxy import LiteLLMProxyGateway
+from agents.main_agent.models.onnx_download import ensure_model
+from agents.main_agent.models.onnx_embedder import (
+    ONNX_MODELS,
+    OnnxEmbedder,
+    OnnxModelFile,
+    OnnxModelSpec,
+    OnnxRuntime,
+    files_ready,
+)
 from agents.main_agent.models.quota import is_quota_exhausted
 
 __all__ = [
     "EMBEDDING_DIMENSIONS",
+    "ONNX_MODELS",
     "CallContext",
+    "EmbedKind",
     "Embedder",
     "EmbeddingUsage",
     "ErrorKind",
@@ -41,12 +53,18 @@ __all__ = [
     "ModelStalledError",
     "ModelSwitchCleanupMiddleware",
     "ModelTestResult",
+    "OnnxEmbedder",
+    "OnnxModelFile",
+    "OnnxModelSpec",
+    "OnnxRuntime",
     "call_context",
     "classify_failure",
     "current_call",
     "detached_context",
+    "ensure_model",
     "estimate_input_tokens",
     "estimate_text_tokens",
+    "files_ready",
     "is_quota_exhausted",
     "version_name",
 ]

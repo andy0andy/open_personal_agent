@@ -38,6 +38,7 @@ from agents.main_agent.knowledge import (
 from agents.main_agent.models import (
     EMBEDDING_DIMENSIONS,
     CallContext,
+    EmbedKind,
     ModelInfo,
     ModelSpec,
     ModelStalledError,
@@ -421,7 +422,9 @@ class FakeEmbedder:
     def __init__(self, vocabulary: Sequence[str] = ()) -> None:
         self._vocabulary = list(vocabulary)
 
-    async def embed(self, texts: Sequence[str]) -> list[list[float]]:
+    async def embed(
+        self, texts: Sequence[str], *, kind: EmbedKind = "document"
+    ) -> list[list[float]]:
         vectors = []
         for text in texts:
             vector = [0.0] * EMBEDDING_DIMENSIONS
@@ -617,6 +620,9 @@ class FakeKnowledgeStore:
         ]
         hits = [hit for hit in hits if hit.score > 0]
         return sorted(hits, key=lambda hit: hit.score, reverse=True)[:top_k]
+
+    async def reembed_missing(self, *, limit: int = 20) -> int:
+        return 0  # 内存里的替身没有向量
 
     async def recall(self, query: str, *, top_k: int, min_similarity: float) -> list[KnowledgeHit]:
         if self._broken_recall:

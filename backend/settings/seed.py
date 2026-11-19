@@ -2,7 +2,7 @@
 补做（打开提示缓存、补建会话索引）；每次启动先把配置文件迁移到当前格式版本。
 
 只补缺的、从不覆盖；做过的部分记在 .workdata/.seeded（files、models、prompt_caching、
-conversation_index 各一行），之后用户删掉的默认项不会被重新写回。
+conversation_index、ollama_retired 各一行），之后用户删掉的默认项不会被重新写回。
 网关暂时连不上时模型这一部分不记，下次启动再导入。
 """
 
@@ -22,7 +22,7 @@ from backend.models.schemas import ModelInput
 from backend.runs.followups import CONVERSATION_INDEX
 from backend.runs.repo import RunRepo
 from backend.settings.store import UserConfigFiles
-from common.errors import InvalidConfigError, UpstreamError
+from common.errors import AppError, InvalidConfigError, UpstreamError
 from config import CONFIG_VERSIONS, config_version, display_path, is_preamble_line
 
 logger = logging.getLogger(__name__)
@@ -154,6 +154,41 @@ async def enable_prompt_caching_once(workdata: Path, models: ModelAdmin) -> list
     if changed:
         logger.info("首次打开提示缓存：%s", "、".join(changed))
     return changed
+
+
+async def retire_ollama_models_once(workdata: Path, models: ModelAdmin) -> list[str]:
+    """升级时把网关里指向本机 Ollama 的模型删一次（D28：compose 里已经没有 Ollama，
+    向量模型改在后端进程里跑），返回删掉的模型名。
+
+    记过标记就不再做：之后用户自己加的不会被删。还在用的（被设成默认、有对话正在用）留着。
+    网关出错、还没载入数据库里的模型时不记标记，下次启动再试。
+    """
+    if "ollama_retired" in _done(workdata):
+        return []
+    removed: list[str] = []
+    try:
+        names = await models.names_with_upstream_prefix("ollama/")
+        if names is None:
+            logger.warning("网关里还没有数据库里的模型（可能刚启动），下次启动再清理 Ollama 的模型")
+            return []
+        for name in names:
+            try:
+                await models.delete(name)
+            except UpstreamError:
+                raise
+            except AppError as exc:  # 被设成默认、有对话正在用：留着，由用户自己处理
+                logger.warning("网关里的模型 %s 指向已经去掉的 Ollama，但没删：%s", name, exc)
+                continue
+            removed.append(name)
+    except UpstreamError:
+        logger.warning("清理 Ollama 的模型时网关出错，下次启动再试", exc_info=True)
+        return removed
+    _mark(workdata, "ollama_retired")
+    if removed:
+        logger.info(
+            "向量模型改在后端进程里跑，删掉了网关里指向 Ollama 的模型：%s", "、".join(removed)
+        )
+    return removed
 
 
 class _Enqueue(Protocol):

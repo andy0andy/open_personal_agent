@@ -42,7 +42,8 @@ const errorText = (exc: unknown) => (exc instanceof Error ? exc.message : String
 
 /**
  * 模型页（设计文档 5，原型 03）。模型全部在网关数据库里（D22），增删改立即生效；
- * 首次启动导入的 4 个也能改、能删。向量模型（默认）只读（R31）。
+ * 首次启动导入的那几个也能改、能删。知识库在用的向量模型只读（R31）：默认的向量模型在后端
+ * 进程里跑、不在这页（D28），只有把向量化换成经网关的实现时才会出现。
  */
 export function ModelsPage() {
   const queryClient = useQueryClient();
